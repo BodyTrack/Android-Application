@@ -1,5 +1,7 @@
 package org.bodytrack.BodyTrack.Activities;
 
+import java.io.IOException;
+
 import org.bodytrack.BodyTrack.DbAdapter;
 import org.bodytrack.BodyTrack.R;
 import org.bodytrack.BodyTrack.R.id;
@@ -7,6 +9,7 @@ import org.bodytrack.BodyTrack.R.layout;
 import org.bodytrack.BodyTrack.R.string;
 
 import android.app.Activity;
+import android.content.res.Resources.NotFoundException;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.os.Bundle;
@@ -87,11 +90,19 @@ public class CameraActivity extends Activity implements SurfaceHolder.Callback{
 
 		public void onPictureTaken(byte[] data, Camera camera) {
 			
-			if (dbAdapter.writePicture(data) != 0) {
-				Toast.makeText(CameraActivity.this, R.string.tookPic,
-						Toast.LENGTH_SHORT).show();
+			try {
+				if (dbAdapter.writePicture(data) != 0) {
+					Toast.makeText(CameraActivity.this, R.string.tookPic,
+							Toast.LENGTH_SHORT).show();
+				}
+				else{
+					Toast.makeText(CameraActivity.this, R.string.failedToSavePic, Toast.LENGTH_SHORT).show();
+				}
+			} catch (Exception e) {
+				Toast.makeText(CameraActivity.this, e.toString(), Toast.LENGTH_SHORT).show();
 			}
-
+			setResult(RESULT_OK);
+			finish();
 			
 		}
 		

@@ -46,7 +46,6 @@ public class GpsSvcControl extends Activity{
 	private Button gpsSvcStartButton;
 	private Button gpsSvcStopButton;
 	private Button gpsShowButton;
-	private Button gpsDumpButton;
 	
 	private TextView Outbox;
 	protected DbAdapter dbAdapter;
@@ -71,7 +70,6 @@ public class GpsSvcControl extends Activity{
         gpsSvcStopButton.setOnClickListener(mStopSvc);
         gpsShowButton = (Button)findViewById(R.id.gpsShowButton);
         gpsShowButton.setOnClickListener(showData);
-        gpsDumpButton = (Button)findViewById(R.id.gpsDumpButton);
        // gpsDumpButton.setOnClickListener(dumpData);
         Outbox = (TextView)findViewById(R.id.Outbox);
         

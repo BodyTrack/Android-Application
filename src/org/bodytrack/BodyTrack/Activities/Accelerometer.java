@@ -100,9 +100,9 @@ public class Accelerometer extends Activity implements SensorEventListener{
 	 * wants to gain access to the values. Currently the event.values array contains all the values the sensor gives out. 
 	 **/
 	public void onSensorChanged(SensorEvent event) {
-		/**accelX.setText("X: " + Float.toString(event.values[0]));
+		accelX.setText("X: " + Float.toString(event.values[0]));
 		accelY.setText("Y: " +  Float.toString(event.values[1]));
-		accelZ.setText("Z: " + Float.toString(event.values[2]));**/
+		accelZ.setText("Z: " + Float.toString(event.values[2]));
 		writeToArray(event.values);
 	}
 

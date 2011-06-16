@@ -35,10 +35,28 @@
   	<!-- Settings values -->
   	<string name="netPrefs">Network Preferences</string>
   	<string name="gpsPrefs">GPS Preferences</string>
-  	<string name="title_upload_address">Upload URL</string>
-  	<string name="summary_upload_address">The URL to dump data to.</string>
-  	<string name="dialog_title_upload_address">Upload URL</string>
-  	<string name="default_upload_url">http://www.example.com/fake.py</string>
+  	<string name="title_user_id">User ID</string>
+  	<string name="sumary_user_id">The user ID to use when uploading.</string>
+  	<string name="dialog_title_user_id">User ID</string>
+  	<string name="default_user_id">17</string>
   	
   	<string name="title_gps_provider">Location Provider</string>
+  	<string name="failedToSavePic">Failed to store the picture!</string>
+  	<string name="picture_delete">Delete</string>
+  	<string name="picture_upload">Upload</string>
+  	<string name="picture_already_uploaded">Already Uploaded</string>
+  	<string name="upload_all_pics">Upload All</string>
+  	<string name="upload_complete">Uploads Complete</string>
+  	<string name="no_images_to_upload">No images to upload.</string>
+  	<string name="delete_uploaded_pics">Delete All Uploaded</string>
+  	<string name="pref_config">Preferences</string>
+  	<string name="pref_need_config">Preferences need configuration before you begin.</string>
+  	<string name="pref_invalid">One or more of your preferences are invalid. Please reconfigure them.</string>
+  	<string name="device_prefs">Device Preferences</string>
+  	<string name="title_user_name">Username</string>
+  	<string name="sumary_user_name">bodytrack.org username</string>
+  	<string name="dialog_title_user_name">Username</string>
+  	<string name="title_password">Password</string>
+  	<string name="sumary_password">bodytrack.org password</string>
+  	<string name="dialog_title_password">Password</string>
 </resources>

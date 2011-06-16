@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen 
 	xmlns:android="http://schemas.android.com/apk/res/android">
-	<PreferenceCategory android:title="@string/netPrefs">
-        <EditTextPreference
-                android:key="upload_address"
-                android:title="@string/title_upload_address"
-                android:summary="@string/summary_upload_address"
-                android:dialogTitle="@string/dialog_title_upload_address" 
-                android:defaultValue="@string/default_upload_url"/>
+	<PreferenceCategory android:title="@string/device_prefs">
+		<EditTextPreference android:key="deviceNickName"></EditTextPreference>
+	</PreferenceCategory><PreferenceCategory android:title="@string/netPrefs"><EditTextPreference
+                android:key="userName" android:title="@string/title_user_name" android:summary="@string/sumary_user_name" android:dialogTitle="@string/dialog_title_user_name"/><EditTextPreference
+                android:key="password" android:password="true" android:summary="@string/sumary_password" android:dialogTitle="@string/dialog_title_password" android:title="@string/title_password"/>
 	</PreferenceCategory>
 	<PreferenceCategory android:title="@string/gpsPrefs">
         <ListPreference 
@@ -18,4 +16,5 @@
         	android:entryValues="@array/gps_provider" />
     	
 	</PreferenceCategory>
+	
 </PreferenceScreen>

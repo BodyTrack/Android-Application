@@ -1,5 +1,8 @@
 package org.bodytrack.BodyTrack;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 
 import android.content.ContentValues;
@@ -58,12 +61,13 @@ public class DbAdapter {
     //Photo table creation SQL
     private static final String PIX_TABLE_CREATE =
         "create table pix (_id integer primary key autoincrement, "
-                + "time integer not null, pic blob not null);";
+                + "time integer not null, pic string not null, uploaded integer not null);";
     //fields of photo table
 	public static final String PIX_TABLE = "pix";
 	public static final String	PIX_KEY_ID = "_id";
 	public static final String	PIX_KEY_TIME = "time";
 	public static final String PIX_KEY_PIC = "pic";
+	public static final String PIX_KEY_UPLOADED = "uploaded";
 	
 
 	//Accelerometer table creation
@@ -100,6 +104,7 @@ public class DbAdapter {
 		@Override
 		public void onCreate(SQLiteDatabase db) {
 			//create the 3 database tables
+			
 			db.execSQL(LOCATION_TABLE_CREATE);
 			db.execSQL(BARCODE_TABLE_CREATE);
 			db.execSQL(PIX_TABLE_CREATE);
@@ -130,8 +135,7 @@ public class DbAdapter {
 	public long writeLocation(Location loc)
 	{
 		ContentValues locToPut = new ContentValues();
-		Double locUnixTime = new Double(loc.getTime()) / new Double(1000);
-		locToPut.put(LOC_KEY_TIME, locUnixTime);
+		locToPut.put(LOC_KEY_TIME, loc.getTime());
 		locToPut.put(LOC_KEY_LATITUDE, loc.getLatitude());
 		locToPut.put(LOC_KEY_LONGITUDE, loc.getLongitude());
 		locToPut.put(LOC_KEY_ACCURACY, loc.getAccuracy());
@@ -143,13 +147,82 @@ public class DbAdapter {
 		return mDb.insert(LOCATION_TABLE, null, locToPut);
 	}
 	
+	public Location getLocationData(Cursor c){
+		Location loc = new Location(c.getString(c.getColumnIndex(LOC_KEY_PROVIDER)));
+		loc.setAccuracy(c.getFloat(c.getColumnIndex(LOC_KEY_ACCURACY)));
+		loc.setAltitude(c.getDouble(c.getColumnIndex(LOC_KEY_ALTITUDE)));
+		loc.setBearing(c.getFloat(c.getColumnIndex(LOC_KEY_BEARING)));
+		loc.setLatitude(c.getDouble(c.getColumnIndex(LOC_KEY_LATITUDE)));
+		loc.setLongitude(c.getDouble(c.getColumnIndex(LOC_KEY_LONGITUDE)));
+		loc.setSpeed(c.getFloat(c.getColumnIndex(LOC_KEY_SPEED)));
+		loc.setTime(c.getLong(c.getColumnIndex(LOC_KEY_TIME)));
+		return loc;
+	}
+	
+	public long getLocationId(Cursor c){
+		return c.getLong(c.getColumnIndex(LOC_KEY_ID));
+	}
+	
+	public long deleteLocation(long id){
+		return mDb.delete(LOCATION_TABLE, LOC_KEY_ID + "=" + id, null);
+	}
+	
 	
 	//WARNING: TIME MUST BE FIRST COLUMN IN QUERIES. UPLOADER CODE DEPENDS ON THIS
     public Cursor fetchAllLocations() {
-        return mDb.query(LOCATION_TABLE, new String[] {LOC_KEY_TIME, LOC_KEY_LATITUDE, 
+        return mDb.query(LOCATION_TABLE, new String[] {LOC_KEY_ID, LOC_KEY_TIME, LOC_KEY_LATITUDE, 
         		LOC_KEY_LONGITUDE, LOC_KEY_ACCURACY, LOC_KEY_ALTITUDE,
         		LOC_KEY_BEARING, LOC_KEY_PROVIDER, LOC_KEY_SPEED},
                 null, null, null, null, LOC_KEY_TIME);
+    }
+    
+    public Cursor fetchAllPics() {
+    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOADED}, null, null, null, null, LOC_KEY_TIME);
+    }
+    
+    public Cursor fetchAllUnuploadedPics() {
+    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOADED}, PIX_KEY_UPLOADED + " = 0", null, null, null, LOC_KEY_TIME);
+    }
+    
+    public Cursor fetchPicture(long id) {
+
+        Cursor mCursor =
+
+            mDb.query(true, PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOADED}, PIX_KEY_ID + "=" + id, null,
+                    null, null, null, null);
+        if (mCursor != null) {
+            mCursor.moveToFirst();
+        }
+        return mCursor;
+
+    }
+    
+    public long setPictureUploaded(long id, boolean uploaded){
+    	ContentValues updateUploaded = new ContentValues();
+    	updateUploaded.put(PIX_KEY_UPLOADED, uploaded ? 1 : 0);
+    	return mDb.update(PIX_TABLE, updateUploaded, PIX_KEY_ID + "=" + id, null);
+    }
+    
+    public long deletePicture(long id){
+    	Cursor c = fetchPicture(id);
+    	String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
+        c.close();
+        
+        mCtx.deleteFile(picFileName);
+        
+        return mDb.delete(PIX_TABLE, PIX_KEY_ID + "=" + id, null);
+    }
+    
+    public long deleteUploadedPictures(){
+    	Cursor c = mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOADED}, PIX_KEY_UPLOADED + " = 1", null, null, null, LOC_KEY_TIME);
+    	c.moveToFirst();
+    	while (!c.isAfterLast()){
+    		String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
+    		 mCtx.deleteFile(picFileName);
+    		c.moveToNext();
+    	}
+    	
+        return mDb.delete(PIX_TABLE, PIX_KEY_UPLOADED + "=1", null);
     }
     
 	//WARNING: TIME MUST BE FIRST COLUMN IN QUERIES. UPLOADER CODE DEPENDS ON THIS
@@ -167,14 +240,23 @@ public class DbAdapter {
 		return mDb.insert(BARCODE_TABLE, null, codeToPut);
 	}
 	
-	public long writePicture(byte[] picture) {
+	public long writePicture(byte[] picture) throws IOException {
 		ContentValues picToPut = new ContentValues();
+		long currentTime = System.currentTimeMillis();
+		String picFileName = "pic_" + currentTime + ".jpg";
 		
+		FileOutputStream fos = mCtx.openFileOutput(picFileName, Context.MODE_PRIVATE);
+		fos.write(picture);
+		fos.close();
 		
-		picToPut.put(PIX_KEY_PIC, picture);
+		picToPut.put(PIX_KEY_PIC, picFileName);
 		picToPut.put(PIX_KEY_TIME, System.currentTimeMillis());
-
-		return mDb.insert(PIX_TABLE, null, picToPut);
+		picToPut.put(PIX_KEY_UPLOADED, 0);
+		long result = mDb.insert(PIX_TABLE, null, picToPut);
+		if (result == 0){
+			mCtx.deleteFile(picFileName);
+		}
+		return result;
 	}
 	public Cursor fetchAllQueries()
 	{

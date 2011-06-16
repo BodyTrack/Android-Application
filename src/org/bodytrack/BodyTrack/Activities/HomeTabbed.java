@@ -1,6 +1,8 @@
 package org.bodytrack.BodyTrack.Activities;
 
 
+import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -9,22 +11,34 @@ import java.util.TimerTask;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
+import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntity;
+import org.apache.http.entity.mime.content.ByteArrayBody;
+import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.bodytrack.BodyTrack.DbAdapter;
+import org.bodytrack.BodyTrack.PreferencesAdapter;
 import org.bodytrack.BodyTrack.R;
+import org.bodytrack.BodyTrack.Activities.CameraReview.ImageAdapter;
 import org.json.JSONArray;
+import org.json.JSONException;
 
+import android.app.AlertDialog;
 import android.app.TabActivity;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
+import android.location.Location;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -41,14 +55,26 @@ import android.widget.Toast;
 public class HomeTabbed extends TabActivity {
 	public DbAdapter dbAdapter;
 	public static final String TAG = "HomeTabbed";
-	String dumpAddress = "http://bodytrack.org/users/14/upload";
+	public static final int ACTIVITY_PREFERENCES = 1;
+	
+	private PreferencesAdapter prefAdapter;
+	private AlertDialog prefConfigDialog;
+	
+	private JSONArray gpsChannelArray = new JSONArray();
+	private final String[] gpsChannelArrayElements = {"latitude","longitude","altitude","uncertainty in meters","speed","bearing"};
 
 	private Menu mMenu;
+	
+	private boolean uploading = false;
 
 	public void onCreate(Bundle savedInstanceState) {
 	    super.onCreate(savedInstanceState);
+	    for (int i = 0; i < gpsChannelArrayElements.length; i++){
+	    	gpsChannelArray.put(gpsChannelArrayElements[i]);
+	    }
 	    setContentView(R.layout.tabbed_home);
 	    dbAdapter = new DbAdapter(this).open();
+	    prefAdapter = new PreferencesAdapter(this);
 	    //Resources res = getResources(); // Resource object to get Drawables
 	    TabHost tabHost = getTabHost();  // The activity TabHost
 	    TabHost.TabSpec spec;  // Resusable TabSpec for each tab
@@ -78,6 +104,24 @@ public class HomeTabbed extends TabActivity {
 	    tabHost.addTab(spec);
 	    Timer time = new Timer();
 	    final Handler handler = new Handler();
+	    
+	    AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setCancelable(false)
+            .setTitle(R.string.pref_config)
+            .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int id) {
+	                dialog.dismiss();
+	                Intent intent = new Intent(getApplicationContext(), BTPrefs.class);
+	                startActivityForResult(intent, ACTIVITY_PREFERENCES);
+                }
+            });
+        prefConfigDialog = builder.create();
+	    
+        if (!checkPrefs(prefAdapter)){
+        	prefConfigDialog.setMessage(getString(R.string.pref_need_config));
+        	prefConfigDialog.show();
+        }
+	    
 	    //This is the timer that sends the data after every 15 seconds.
 	    time.scheduleAtFixedRate(new TimerTask()
 	    {
@@ -109,14 +153,14 @@ public class HomeTabbed extends TabActivity {
 		switch (item.getItemId()) {
 		case R.id.prefs:
 	    	Intent intent = new Intent(getApplicationContext(), BTPrefs.class);
-	    	startActivity(intent);
+	    	startActivityForResult(intent, ACTIVITY_PREFERENCES);
 			return true;
 		}
 		return false;
 	}
 	public void sendData() throws NumberFormatException
 	{
-		Cursor queData = dbAdapter.fetchAllQueries();
+		/*Cursor queData = dbAdapter.fetchAllQueries();
 		JSONArray data = new JSONArray();
 		JSONArray channel = new JSONArray();
 		if(queData.moveToFirst())
@@ -151,31 +195,33 @@ public class HomeTabbed extends TabActivity {
 			}
 		}
     	queData.close();
-    	fields.clear();
-		HttpClient mHttpClient = new DefaultHttpClient();
-    	HttpPost postToServer = new HttpPost(dumpAddress);
-    	WifiManager wifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
-    	WifiInfo address = wifiManager.getConnectionInfo();
-    	try {
-    		List<NameValuePair> postRequest = new ArrayList<NameValuePair>();
-	    	postRequest.add(new BasicNameValuePair("device_id", address.getMacAddress()));
-	    	postRequest.add(new BasicNameValuePair("channel_names", channel.toString())); 
-	    	postRequest.add(new BasicNameValuePair("data", data.toString()));
-	    	Log.i("DATA", data.toString());
-    		postToServer.setEntity(new UrlEncodedFormEntity(postRequest));
-    		HttpResponse response = mHttpClient.execute(postToServer);
-    		Toast.makeText(HomeTabbed.this, "This is the response: " + EntityUtils.toString(response.getEntity()),
-    				Toast.LENGTH_SHORT).show();	  
-    	} catch (Exception e) {
-    		e.printStackTrace();
-    	}
-		}
-		else
-		{
-			Toast.makeText(HomeTabbed.this, "NO DATA",Toast.LENGTH_SHORT).show();
-			queData.close();
+    	fields.clear();*/
+		
+		if (!uploading){
+			uploading = true;
+			new UploaderTask().execute();
 		}
 	}
+	
+	protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        super.onActivityResult(requestCode, resultCode, intent);
+        
+        switch(requestCode) {
+	        case ACTIVITY_PREFERENCES:
+	        	prefAdapter.obtainUserID(this);
+	        	
+	            break;
+        }
+        
+    }
+	
+	public void onUserIDUpdated(){
+		if (!checkPrefs(prefAdapter)){
+    		prefConfigDialog.setMessage(getString(R.string.pref_invalid));
+    		prefConfigDialog.show();
+    	}
+	}
+	
 	public boolean isCorrectTime(String value)
 	{
 		try
@@ -191,4 +237,84 @@ public class HomeTabbed extends TabActivity {
 			return false;
 		}
 	}
+	
+	//checks for invalid preferences. Returns true if preferences are valid.
+	private boolean checkPrefs(PreferencesAdapter prefAdapter){
+		return prefAdapter.getUserID() != PreferencesAdapter.INVALID_USER_ID;
+	}
+	
+	public void onUploadFinished(){
+		uploading = false;
+	}
+	
+private class UploaderTask extends AsyncTask<Void, Void, Void> {
+		
+		private int numUploaded = 0;
+		private int totalToUpload;
+		
+	     protected Void doInBackground(Void... params) {	    			
+ 			Cursor c = dbAdapter.fetchAllLocations();
+ 			
+ 			JSONArray dataArray = new JSONArray();
+ 			
+ 			ArrayList<Long> locationIds = new ArrayList<Long>();
+ 			
+ 			if (c.moveToFirst()){
+ 				while (!c.isAfterLast()){
+					Location loc = dbAdapter.getLocationData(c);
+					locationIds.add(dbAdapter.getLocationId(c));
+					
+					try{
+						JSONArray locData = new JSONArray();
+						locData.put(loc.getTime() / 1000.0);
+						locData.put(loc.getLatitude());
+						locData.put(loc.getLongitude());
+						locData.put(loc.getAltitude());
+						locData.put(loc.getAccuracy());
+						locData.put(loc.getSpeed());
+						locData.put(loc.getBearing());
+						dataArray.put(locData);
+					}
+					catch (JSONException e){
+						
+					}
+ 					
+ 					
+ 					c.moveToNext();
+ 				}
+ 			}
+ 			c.close();
+ 			if (dataArray.length() > 0){
+ 				HttpClient mHttpClient = new DefaultHttpClient();
+ 		    	HttpPost postToServer = new HttpPost(prefAdapter.getUploadAddress());
+ 		    	WifiManager wifiManager = (WifiManager) HomeTabbed.this.getSystemService(Context.WIFI_SERVICE);
+ 		    	WifiInfo address = wifiManager.getConnectionInfo();
+ 		    	try {
+ 		    		List<NameValuePair> postRequest = new ArrayList<NameValuePair>();
+ 			    	postRequest.add(new BasicNameValuePair("device_id", address.getMacAddress()));
+ 			    	postRequest.add(new BasicNameValuePair("timezone","UTC"));
+ 			    	postRequest.add(new BasicNameValuePair("device_class",android.os.Build.MODEL));
+ 			    	postRequest.add(new BasicNameValuePair("channel_names", gpsChannelArray.toString())); 
+ 			    	postRequest.add(new BasicNameValuePair("data", dataArray.toString()));
+ 		    		postToServer.setEntity(new UrlEncodedFormEntity(postRequest));
+ 		    		HttpResponse response = mHttpClient.execute(postToServer);
+ 		    		while (locationIds.size() > 0){
+ 		    			dbAdapter.deleteLocation(locationIds.remove(0));
+ 		    		}
+ 		    	} catch (Exception e) {
+ 		    		e.printStackTrace();
+ 		    	}
+ 			}
+ 			else{
+ 				while (locationIds.size() > 0){
+ 	    			dbAdapter.deleteLocation(locationIds.remove(0));
+ 	    		}
+ 			}
+	         return null;
+	     }
+
+	     protected void onPostExecute(Void result) {
+	    	 HomeTabbed.this.onUploadFinished();
+	     }
+	 }
 }
