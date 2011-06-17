@@ -63,6 +63,9 @@ public class HomeTabbed extends TabActivity {
 	private JSONArray gpsChannelArray = new JSONArray();
 	private final String[] gpsChannelArrayElements = {"latitude","longitude","altitude","uncertainty in meters","speed","bearing"};
 
+	private JSONArray accChannelArray = new JSONArray();
+	private final String[] accChannelArrayElements = {"acceleration_x","acceleration_y","acceleration_z"};
+	
 	private Menu mMenu;
 	
 	private boolean uploading = false;
@@ -71,6 +74,9 @@ public class HomeTabbed extends TabActivity {
 	    super.onCreate(savedInstanceState);
 	    for (int i = 0; i < gpsChannelArrayElements.length; i++){
 	    	gpsChannelArray.put(gpsChannelArrayElements[i]);
+	    }
+	    for (int i = 0; i < accChannelArrayElements.length; i++){
+	    	accChannelArray.put(accChannelArrayElements[i]);
 	    }
 	    setContentView(R.layout.tabbed_home);
 	    dbAdapter = new DbAdapter(this).open();
@@ -93,10 +99,10 @@ public class HomeTabbed extends TabActivity {
 	    	.setContent(intent);
 	    tabHost.addTab(spec);
 	    
-	  /**  intent = new Intent().setClass(this, BarcodeReview.class);
+	    intent = new Intent().setClass(this, BarcodeReview.class);
 	    spec = tabHost.newTabSpec("barcode").setIndicator("Barcodes")
 	    	.setContent(intent);
-	    tabHost.addTab(spec);**/
+	    tabHost.addTab(spec);
 	    
 	    intent = new Intent().setClass(this, Accelerometer.class);
 	    spec = tabHost.newTabSpec("accelerometer").setIndicator("Accelerometer")
@@ -117,7 +123,7 @@ public class HomeTabbed extends TabActivity {
             });
         prefConfigDialog = builder.create();
 	    
-        if (!checkPrefs(prefAdapter)){
+        if (!prefAdapter.prefsAreGood()){
         	prefConfigDialog.setMessage(getString(R.string.pref_need_config));
         	prefConfigDialog.show();
         }
@@ -136,7 +142,7 @@ public class HomeTabbed extends TabActivity {
 	    	}
 	    }
 	    ,15000,15000);
-	    }
+	}
 
 		
 	
@@ -197,7 +203,7 @@ public class HomeTabbed extends TabActivity {
     	queData.close();
     	fields.clear();*/
 		
-		if (!uploading){
+		if (!uploading && prefAdapter.isNetworkEnabled()){
 			uploading = true;
 			new UploaderTask().execute();
 		}
@@ -216,7 +222,7 @@ public class HomeTabbed extends TabActivity {
     }
 	
 	public void onUserIDUpdated(){
-		if (!checkPrefs(prefAdapter)){
+		if (!prefAdapter.prefsAreGood()){
     		prefConfigDialog.setMessage(getString(R.string.pref_invalid));
     		prefConfigDialog.show();
     	}
@@ -238,11 +244,6 @@ public class HomeTabbed extends TabActivity {
 		}
 	}
 	
-	//checks for invalid preferences. Returns true if preferences are valid.
-	private boolean checkPrefs(PreferencesAdapter prefAdapter){
-		return prefAdapter.getUserID() != PreferencesAdapter.INVALID_USER_ID;
-	}
-	
 	public void onUploadFinished(){
 		uploading = false;
 	}
@@ -252,7 +253,8 @@ private class UploaderTask extends AsyncTask<Void, Void, Void> {
 		private int numUploaded = 0;
 		private int totalToUpload;
 		
-	     protected Void doInBackground(Void... params) {	    			
+	     protected Void doInBackground(Void... params) {	
+	    	//upload gps data
  			Cursor c = dbAdapter.fetchAllLocations();
  			
  			JSONArray dataArray = new JSONArray();
@@ -298,9 +300,11 @@ private class UploaderTask extends AsyncTask<Void, Void, Void> {
  			    	postRequest.add(new BasicNameValuePair("data", dataArray.toString()));
  		    		postToServer.setEntity(new UrlEncodedFormEntity(postRequest));
  		    		HttpResponse response = mHttpClient.execute(postToServer);
- 		    		while (locationIds.size() > 0){
- 		    			dbAdapter.deleteLocation(locationIds.remove(0));
- 		    		}
+ 		    		int statusCode = response.getStatusLine().getStatusCode();
+ 		    		if (statusCode >= 200 && statusCode < 300)
+	 		    		while (locationIds.size() > 0){
+	 		    			dbAdapter.deleteLocation(locationIds.remove(0));
+	 		    		}
  		    	} catch (Exception e) {
  		    		e.printStackTrace();
  		    	}
@@ -308,6 +312,66 @@ private class UploaderTask extends AsyncTask<Void, Void, Void> {
  			else{
  				while (locationIds.size() > 0){
  	    			dbAdapter.deleteLocation(locationIds.remove(0));
+ 	    		}
+ 			}
+ 			//upload accelerometer data
+ 			c = dbAdapter.fetchAllAccelerations();
+ 			
+ 			dataArray = new JSONArray();
+ 			
+ 			ArrayList<Long> accelerationIds = new ArrayList<Long>();
+ 			
+ 			if (c.moveToFirst()){
+ 				while (!c.isAfterLast()){
+ 					float x = c.getFloat(c.getColumnIndex(DbAdapter.ACCEL_KEY_X));
+		    		float y = c.getFloat(c.getColumnIndex(DbAdapter.ACCEL_KEY_Y));
+		    		float z = c.getFloat(c.getColumnIndex(DbAdapter.ACCEL_KEY_Z));
+		    		long time = c.getLong(c.getColumnIndex(DbAdapter.ACCEL_KEY_TIME));
+		    		accelerationIds.add(c.getLong(c.getColumnIndex(DbAdapter.ACCEL_KEY_ID)));
+					
+					try{
+						JSONArray accData = new JSONArray();
+						accData.put(time / 1000.0);
+						accData.put(x);
+						accData.put(y);
+						accData.put(z);
+						dataArray.put(accData);
+					}
+					catch (JSONException e){
+						
+					}
+ 					
+ 					
+ 					c.moveToNext();
+ 				}
+ 			}
+ 			c.close();
+ 			if (dataArray.length() > 0){
+ 				HttpClient mHttpClient = new DefaultHttpClient();
+ 		    	HttpPost postToServer = new HttpPost(prefAdapter.getUploadAddress());
+ 		    	WifiManager wifiManager = (WifiManager) HomeTabbed.this.getSystemService(Context.WIFI_SERVICE);
+ 		    	WifiInfo address = wifiManager.getConnectionInfo();
+ 		    	try {
+ 		    		List<NameValuePair> postRequest = new ArrayList<NameValuePair>();
+ 			    	postRequest.add(new BasicNameValuePair("device_id", address.getMacAddress()));
+ 			    	postRequest.add(new BasicNameValuePair("timezone","UTC"));
+ 			    	postRequest.add(new BasicNameValuePair("device_class",android.os.Build.MODEL));
+ 			    	postRequest.add(new BasicNameValuePair("channel_names", accChannelArray.toString())); 
+ 			    	postRequest.add(new BasicNameValuePair("data", dataArray.toString()));
+ 		    		postToServer.setEntity(new UrlEncodedFormEntity(postRequest));
+ 		    		HttpResponse response = mHttpClient.execute(postToServer);
+ 		    		int statusCode = response.getStatusLine().getStatusCode();
+ 		    		if (statusCode >= 200 && statusCode < 300)
+	 		    		while (accelerationIds.size() > 0){
+	 		    			dbAdapter.deleteAcceleration(accelerationIds.remove(0));
+	 		    		}
+ 		    	} catch (Exception e) {
+ 		    		e.printStackTrace();
+ 		    	}
+ 			}
+ 			else{
+ 				while (accelerationIds.size() > 0){
+ 	    			dbAdapter.deleteAcceleration(accelerationIds.remove(0));
  	    		}
  			}
 	         return null;

@@ -123,20 +123,7 @@ public class CameraReview extends Activity {
 	    	}
 	    	c.close();
 	    	if (ids.length > 0){
-	    		uploadDialog = new ProgressDialog(CameraReview.this);
-	    		uploadDialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
-
-		    	    @Override
-		    	    public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
-		    	        if (keyCode == KeyEvent.KEYCODE_SEARCH && event.getRepeatCount() == 0) {
-		    	            return true; // Pretend we processed it
-		    	        }
-		    	        return false; // Any other keys are still processed as normal
-		    	    }
-		    	});
-	    		uploadDialog.setCancelable(false);
-		    	uploadDialog.show();
-	    		new UploadImageTask().execute(ids);
+	    		uploadPhotos(ids);
 	    	}
 	    	else{
 	    		uploadCompleteDialog.setMessage(getString(R.string.no_images_to_upload));
@@ -158,12 +145,21 @@ public class CameraReview extends Activity {
 	public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
 	    super.onCreateContextMenu(menu, v, menuInfo);
 	    menu.add(0, DELETE_ID, 0, R.string.picture_delete);
-	    Cursor c = dbAdapter.fetchPicture(((AdapterContextMenuInfo)menuInfo).id);
-	    boolean enabled = c.getInt(c.getColumnIndex(DbAdapter.PIX_KEY_UPLOADED)) == 0;
-	    menu.add(0, UPLOAD_ID, 0, enabled ? R.string.picture_upload : R.string.picture_already_uploaded);
+	    boolean enabled;
 		
+	    if (!prefAdapter.isNetworkEnabled()){
+	    	enabled = false;
+	    	menu.add(0, UPLOAD_ID, 0, R.string.network_disabled);
+	    }
+	    else{
+	    	Cursor c = dbAdapter.fetchPicture(((AdapterContextMenuInfo)menuInfo).id);
+	    	enabled = c.getInt(c.getColumnIndex(DbAdapter.PIX_KEY_UPLOADED)) == 0;
+	    	c.close();
+	    	menu.add(0, UPLOAD_ID, 0, enabled ? R.string.picture_upload : R.string.picture_already_uploaded);
+	    }
+	    
 		menu.getItem(UPLOAD_ID).setEnabled(enabled);
-		c.close();
+		
 	}
 	
 	public boolean onContextItemSelected(MenuItem item) {
@@ -177,24 +173,28 @@ public class CameraReview extends Activity {
 		    }
 		    case UPLOAD_ID:
 		    {
-		    	uploadDialog = new ProgressDialog(this);
-		    	uploadDialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
-
-		    	    @Override
-		    	    public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
-		    	        if (keyCode == KeyEvent.KEYCODE_SEARCH && event.getRepeatCount() == 0) {
-		    	            return true; // Pretend we processed it
-		    	        }
-		    	        return false; // Any other keys are still processed as normal
-		    	    }
-		    	});
-		    	uploadDialog.setCancelable(false);
-		    	uploadDialog.show();
-		    	new UploadImageTask().execute(info.id);
+		    	uploadPhotos(info.id);
 		    	return true;
 		    }
 	    }
 	    return super.onContextItemSelected(item);
+	}
+	
+	public void uploadPhotos(Long... ids){
+		uploadDialog = new ProgressDialog(this);
+    	uploadDialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
+
+    	    @Override
+    	    public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
+    	        if (keyCode == KeyEvent.KEYCODE_SEARCH && event.getRepeatCount() == 0) {
+    	            return true; // Pretend we processed it
+    	        }
+    	        return false; // Any other keys are still processed as normal
+    	    }
+    	});
+    	uploadDialog.setCancelable(false);
+    	uploadDialog.show();
+    	new UploadImageTask().execute(ids);
 	}
 	
 	protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
@@ -202,12 +202,24 @@ public class CameraReview extends Activity {
         
         switch(requestCode) {
 	        case ACTIVITY_NEW_PICTURE:
-	        	if (resultCode == RESULT_OK)
+	        	if (resultCode == RESULT_OK){
 	        		((ImageAdapter) picGallery.getAdapter()).notifyDataSetChanged();
+	        		if (prefAdapter.autoUploadPhotosEnabled()){
+	        			Cursor c = dbAdapter.fetchLastPicture();
+	        			long id = c.getLong(c.getColumnIndex(DbAdapter.LOC_KEY_ID));
+	        			c.close();
+	        			uploadPhotos(id);
+	        		}
+	        	}
 	            break;
         }
         
     }
+	
+	protected void onResume(){
+		super.onResume();
+		uploadPics.setEnabled(prefAdapter.isNetworkEnabled());
+	}
 	
 	public class ImageAdapter extends BaseAdapter {
 	    int mGalleryItemBackground;
@@ -357,6 +369,9 @@ public class CameraReview extends Activity {
 					if (status.getStatusCode() >= 200 && status.getStatusCode() < 300){
 						dbAdapter.setPictureUploaded(ids[i],true);
 						numUploaded++;
+						if (prefAdapter.autoDeletePhotosEnabled()){
+							dbAdapter.deletePicture(ids[i]);
+						}
 					}
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -375,6 +390,9 @@ public class CameraReview extends Activity {
 	     }
 
 	     protected void onPostExecute(Long result) {
+	    	 if (prefAdapter.autoDeletePhotosEnabled() && numUploaded > 0){
+	    		 ((ImageAdapter) picGallery.getAdapter()).notifyDataSetChanged();
+	    	 }
 	    	 uploadDialog.dismiss();
 	    	 if (totalToUpload == 1){
 	    		 if (numUploaded == 1){

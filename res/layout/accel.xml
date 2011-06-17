@@ -4,9 +4,9 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     >
-<TextView android:id="@+id/title" android:layout_width="wrap_content" android:layout_height="wrap_content"></TextView>
-<TextView android:text="TextView" android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/accelX"></TextView>
-<TextView android:text="TextView" android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/accelY"></TextView>
-<TextView android:layout_width="wrap_content" android:text="TextView" android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:id="@+id/accelZ"></TextView>
-<Button  android:id="@+id/upload" android:layout_width="wrap_content" android:layout_height="wrap_content"></Button>
+<Button android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/start_acc" android:id="@+id/StartAcc"></Button>
+<Button android:text="@string/stop_acc" android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/stopAcc"></Button>
+<Button android:text="@string/showData" android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/dumpAccData"></Button>
+<Button android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/dump_acc" android:text="@string/dump_gps"></Button>
+<TextView android:layout_width="fill_parent" android:text="TextView" android:layout_height="fill_parent" android:layout_gravity="top" android:id="@+id/accData"></TextView>
 </LinearLayout>

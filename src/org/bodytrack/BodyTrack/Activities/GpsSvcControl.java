@@ -1,5 +1,8 @@
 package org.bodytrack.BodyTrack.Activities;
 
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -25,11 +28,14 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.location.Location;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -51,7 +57,6 @@ public class GpsSvcControl extends Activity{
 	protected DbAdapter dbAdapter;
 	
 	protected SharedPreferences prefs;
-	protected String dumpAddress;
 	
 	private IGPSSvcRPC gpsBinder;
 	
@@ -65,7 +70,9 @@ public class GpsSvcControl extends Activity{
                 
         //Set up buttons
         gpsSvcStartButton = (Button)findViewById(R.id.gpsSvcStartButton);
+        gpsSvcStartButton.setEnabled(false);
         gpsSvcStopButton = (Button)findViewById(R.id.gpsSvcStopButton);
+        gpsSvcStopButton.setEnabled(false);
         gpsSvcStartButton.setOnClickListener(mStartSvc);
         gpsSvcStopButton.setOnClickListener(mStopSvc);
         gpsShowButton = (Button)findViewById(R.id.gpsShowButton);
@@ -82,35 +89,42 @@ public class GpsSvcControl extends Activity{
         //connect to database
 		dbAdapter = new DbAdapter(this).open();
 		
-		//Load preferences
-		prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		dumpAddress = prefs.getString("upload_address", "FAIL");
-		Log.v(TAG, "loaded submission address " + dumpAddress + 
-				" from preferences");
+		Button dumpButton = (Button)findViewById(R.id.dump_gps);
+		dumpButton.setOnClickListener(new OnClickListener(){
+
+			@Override
+			public void onClick(View v) {
+				try{
+					FileOutputStream fos = new FileOutputStream(Environment.getExternalStorageDirectory().getAbsolutePath() + "/gps.csv");
+					OutputStreamWriter writer = new OutputStreamWriter(fos);
+					writer.write("Latitude,Longitude,Altitude,Accuracy,Bearing,Speed,Provider,Timestamp");
+					Cursor c = dbAdapter.fetchAllLocations();
+					c.moveToFirst();
+					while (!c.isAfterLast()){
+						Location loc = dbAdapter.getLocationData(c);
+						writer.write("\n" + loc.getLatitude() + "," + loc.getLongitude() + "," + loc.getAltitude() + "," + 
+								loc.getAccuracy() + "," + loc.getBearing() + "," + loc.getSpeed() + "," + loc.getProvider() + "," + loc.getTime());
+						c.moveToNext();
+					}
+					c.close();
+					writer.close();
+					Toast.makeText(GpsSvcControl.this, "gps.csv created", Toast.LENGTH_LONG).show();
+				}
+				catch (Exception e){
+					Toast.makeText(GpsSvcControl.this, "failed to write gps.csv: " + e.toString(), Toast.LENGTH_LONG).show();
+				}
+			}
+			
+		});
 		
-    }
-    
-    @Override
-    protected void onResume() {
-		//Load preferences
-		prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		//reset upload address if changed
-		dumpAddress = prefs.getString("upload_address", "FAIL");
-		Log.v(TAG, "loaded submission address " + dumpAddress + 
-				" from preferences");
-		
-		super.onResume();
     }
     
     protected void serviceBound(IGPSSvcRPC binder) {
         //Log.v(TAG, "Telling GPS service to start. Success? " + bindSuccess);
     	this.gpsBinder = binder;
     	try {
-        if (binder.isLogging()) {
-        	gpsSvcStartButton.setEnabled(false);
-        } else {
-        	gpsSvcStopButton.setEnabled(false);
-        }
+        	gpsSvcStartButton.setEnabled(!binder.isLogging());
+        	gpsSvcStopButton.setEnabled(binder.isLogging());
         //TODO catch
     	} catch (Exception e){}
 	

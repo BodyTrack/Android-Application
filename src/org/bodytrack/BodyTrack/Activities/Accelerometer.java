@@ -1,146 +1,156 @@
 package org.bodytrack.BodyTrack.Activities;
 
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.message.BasicNameValuePair;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+
+import org.bodytrack.BodyTrack.AccelerometerService;
 import org.bodytrack.BodyTrack.DbAdapter;
+import org.bodytrack.BodyTrack.GpsService;
+import org.bodytrack.BodyTrack.IAccSvcRPC;
+import org.bodytrack.BodyTrack.IGPSSvcRPC;
 import org.bodytrack.BodyTrack.R;
-import org.json.JSONArray;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Context;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.database.Cursor;
+import android.location.Location;
 import android.os.Bundle;
-import android.os.Handler;
+import android.os.Environment;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.util.Log;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class Accelerometer extends Activity implements SensorEventListener{
+public class Accelerometer extends Activity implements OnClickListener{
 	//This is the manager that gets instantiated inside the on create method.
-	SensorManager manager = null;
-	TextView title;
-	TextView accelX;
-	TextView accelY;
-	TextView accelZ;
-	Timer time;
-	Handler handler = new Handler();
-	Button sendData; 
-	ArrayList<String> data = new ArrayList<String>();
-	Float[] accelValue = new Float[3];
-	String dumpAddress = "http://bodytrack.org/users/14/upload";
+	
+	private IAccSvcRPC accBinder;
+	
 	protected DbAdapter dbAdapter; 
-	/**
-	 * This method gets called when the program is first started. The method initializes the text views and the System manager.
-	 * This System manager is used in order to activate the sensors of the Android phone. 
-	 * The text views are only there temporarily to test. 
-	 **/
-	//TODO delete the text views once the accelerometer is working.
-	public void onCreate(Bundle savedInstanceState)
-	{
-	super.onCreate(savedInstanceState);
-	setContentView(R.layout.accel);
-	dbAdapter = new DbAdapter(this).open();
-    manager = (SensorManager) getSystemService(SENSOR_SERVICE);
-    title = (TextView) findViewById(R.id.title);
-    title.setText("Accelerometer");
-    accelX = (TextView) findViewById(R.id.accelX);
-    accelY = (TextView) findViewById(R.id.accelY);
-    accelZ = (TextView) findViewById(R.id.accelZ);
-    sendData = (Button) findViewById(R.id.upload);
-    sendData.setText("Upload Data");
-    sendData.setOnClickListener(upload);
-    time = new Timer();
-    //This is the timer that sends the data after every 15 seconds.
-    time.scheduleAtFixedRate(new TimerTask()
-    {
-    	public void run()
-    	{
-    	handler.post(new Runnable(){
-    	public void run()
-    	{
-    		dbAdapter.writeQuery("AccelX,AccelY,AccelZ", data);
-    		data.clear();
-    	}
-    	});
-    	}
-    }
-    ,15000, 15000);
-    }
 	
-	@Override
-	/**
-	 * Please read inside comment.
-	 **/
-	public void onAccuracyChanged(Sensor sensor, int accuracy) {
-		// Nothing needs to be in this method. Just here in order to make the program compile correctly.
+	private Button startAccService, stopAccService, showData, dumpData;
+	
+	private TextView outputArea;
+	
+	
+	public void onCreate(Bundle savedInstanceState){
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.accel);
+		dbAdapter = new DbAdapter(this).open();
 		
-	}
-	
-	@Override
-	/**
-	 * This method is invoked when the sensor values have changed. This method is used for all sensors when the programmer
-	 * wants to gain access to the values. Currently the event.values array contains all the values the sensor gives out. 
-	 **/
-	public void onSensorChanged(SensorEvent event) {
-		accelX.setText("X: " + Float.toString(event.values[0]));
-		accelY.setText("Y: " +  Float.toString(event.values[1]));
-		accelZ.setText("Z: " + Float.toString(event.values[2]));
-		writeToArray(event.values);
-	}
+		startAccService = (Button)findViewById(R.id.StartAcc);
+		startAccService.setEnabled(false);
+		stopAccService = (Button)findViewById(R.id.stopAcc);
+		stopAccService.setEnabled(false);
+		showData = (Button)findViewById(R.id.dumpAccData);
+		dumpData = (Button)findViewById(R.id.dump_acc);
+		
+		outputArea = (TextView)findViewById(R.id.accData);
+		
+		startAccService.setOnClickListener(this);
+		stopAccService.setOnClickListener(this);
+		showData.setOnClickListener(this);
+		dumpData.setOnClickListener(this);
+		
+		Context ctx = getApplicationContext();
+    	Intent intent = new Intent(ctx, AccelerometerService.class);
+    	ctx.startService(intent);
+    	ctx.bindService(intent, sc, 0);
+    }
+
 
 	@Override
-	/**
-	 * This method is invoked when the user returns back to the program. This is needed when it corresponds to the 
-	 * onPause method. The method registers the sensor that is needed for the program to continue. The SensorManager.SENSOR_DELAY_GAME
-	 * tells the phone at what speed the sensor should gather the data. The fastest mode is SENSOR_DELAY_FASTEST.
-	 **/
-	protected void onResume()
-	{
-		manager.registerListener(this, manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) , SensorManager.SENSOR_DELAY_GAME);
-		super.onResume();
+	public void onClick(View v) {
+		if (v == startAccService){
+			try {
+				accBinder.startLogging();
+				startAccService.setEnabled(false);
+				stopAccService.setEnabled(true);
+			} catch (RemoteException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		else if (v == stopAccService){
+			try {
+				accBinder.stopLogging();
+				startAccService.setEnabled(true);
+				stopAccService.setEnabled(false);
+			} catch (RemoteException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		else if (v == showData){
+			outputArea.setText("");
+	    	Cursor c = dbAdapter.fetchAllAccelerations();
+	    	c.moveToFirst();
+	    	while (c.isAfterLast() == false) {
+	    		float x = c.getFloat(c.getColumnIndex(DbAdapter.ACCEL_KEY_X));
+	    		float y = c.getFloat(c.getColumnIndex(DbAdapter.ACCEL_KEY_Y));
+	    		float z = c.getFloat(c.getColumnIndex(DbAdapter.ACCEL_KEY_Z));
+	    		double magnitude = Math.sqrt(x*x+y*y+z*z);
+	    		outputArea.append("\n" + x + "," + y + "," + z + "," + magnitude);
+	    		c.moveToNext();
+	    	}
+	    	c.close();
+		}
+		else if (v == dumpData){
+			try{
+				FileOutputStream fos = new FileOutputStream(Environment.getExternalStorageDirectory().getAbsolutePath() + "/acc.csv");
+				OutputStreamWriter writer = new OutputStreamWriter(fos);
+				writer.write("X,Y,Z,magnitude,timestamp");
+				Cursor c = dbAdapter.fetchAllAccelerations();
+				c.moveToFirst();
+				while (!c.isAfterLast()){
+					float x = c.getFloat(c.getColumnIndex(DbAdapter.ACCEL_KEY_X));
+		    		float y = c.getFloat(c.getColumnIndex(DbAdapter.ACCEL_KEY_Y));
+		    		float z = c.getFloat(c.getColumnIndex(DbAdapter.ACCEL_KEY_Z));
+		    		double magnitude = Math.sqrt(x*x+y*y+z*z);
+		    		long time = c.getLong(c.getColumnIndex(DbAdapter.ACCEL_KEY_TIME));
+					writer.write("\n" + x + "," + y + "," + z + "," + magnitude + "," + time);
+					c.moveToNext();
+				}
+				c.close();
+				writer.close();
+				Toast.makeText(Accelerometer.this, "acc.csv created", Toast.LENGTH_LONG).show();
+			}
+			catch (Exception e){
+				Toast.makeText(Accelerometer.this, "failed to write acc.csv: " + e.toString(), Toast.LENGTH_LONG).show();
+			}
+		}
 	}
 	
-	@Override
-	/**
-	 * This method is invoked when the user switches to another program or closes this running program.
-	 * It unregisters the listener because it is not needed during the moment when the user has switched the program.
-	 **/
-	protected void onPause()
-	{
-		manager.unregisterListener(this, manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER));
-		super.onPause();
-	}
-	/*=
-	 * This is for testing to see if the data is actually sent.
-	 */
-	private Button.OnClickListener upload = new Button.OnClickListener(){
-		public void onClick(View v)
-		{
+	private ServiceConnection sc = new ServiceConnection(){
+    	
+    	@Override
+		public void onServiceConnected(ComponentName svc, IBinder binder) {
+    		accBinder = IAccSvcRPC.Stub.asInterface(binder);
+    		serviceBound(accBinder);
 		}
-	};
-	public void writeToArray(float[] values)
-	{
-		long time = System.currentTimeMillis();
-		int number = (int) (time/1000);
-		int last_num = (int) (time% 1000);
-		data.add(Integer.toString(number)+ "." + Integer.toString(last_num) + "," + Float.toString(values[0]) + "," + Float.toString(values[1])+ ","+ Float.toString(values[2]));
+
+    	@Override
+		public void onServiceDisconnected(ComponentName name) {
+		}
+    };
+
+
+	protected void serviceBound(IAccSvcRPC binder) {
+		accBinder = binder;
+    	try {
+	        startAccService.setEnabled(!binder.isLogging());
+	        stopAccService.setEnabled(binder.isLogging());
+        //TODO catch
+    	} catch (Exception e){}
 	}
+	
 }

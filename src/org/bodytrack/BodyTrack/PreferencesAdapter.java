@@ -64,6 +64,22 @@ public class PreferencesAdapter {
 		return prefs.getString("password", INVALID_PASSWORD);
 	}
 	
+	public boolean autoDeletePhotosEnabled(){
+		return prefs.getBoolean("photoAutodelete", false);
+	}
+	
+	public boolean autoUploadPhotosEnabled(){
+		return prefs.getBoolean("photoAutoupload", false);
+	}
+	
+	public boolean isNetworkEnabled(){
+		return prefs.getBoolean("networkEnabled", true);
+	}
+	
+	public boolean prefsAreGood(){
+		return (!isNetworkEnabled() || getUserID() != PreferencesAdapter.INVALID_USER_ID);
+	}
+	
 	public void obtainUserID(HomeTabbed home){
 		obtainingUserIDDialog = new ProgressDialog(home);
 		obtainingUserIDDialog.setMessage("Obtaining user id");
@@ -90,21 +106,23 @@ public class PreferencesAdapter {
 		protected Void doInBackground(HomeTabbed... objs) {
 			caller = objs[0];
 			int uid = INVALID_USER_ID;
-			try {
-				HttpClient mHttpClient = new DefaultHttpClient();
-				HttpPost postToServer = new HttpPost(loginAddress);
-				List<NameValuePair> postRequest = new ArrayList<NameValuePair>();
-		    	postRequest.add(new BasicNameValuePair("login", getUserName()));
-		    	postRequest.add(new BasicNameValuePair("password", getPassword()));
-				postToServer.setEntity(new UrlEncodedFormEntity(postRequest));
-				HttpResponse response = mHttpClient.execute(postToServer);
-				int statusCode = response.getStatusLine().getStatusCode();
-				if (statusCode >= 200 && statusCode < 300){
-					String text = EntityUtils.toString(response.getEntity());
-					JSONObject jObject = new JSONObject(text);
-					uid = Integer.parseInt(jObject.getString("user_id"));
+			if (isNetworkEnabled()){
+				try {
+					HttpClient mHttpClient = new DefaultHttpClient();
+					HttpPost postToServer = new HttpPost(loginAddress);
+					List<NameValuePair> postRequest = new ArrayList<NameValuePair>();
+			    	postRequest.add(new BasicNameValuePair("login", getUserName()));
+			    	postRequest.add(new BasicNameValuePair("password", getPassword()));
+					postToServer.setEntity(new UrlEncodedFormEntity(postRequest));
+					HttpResponse response = mHttpClient.execute(postToServer);
+					int statusCode = response.getStatusLine().getStatusCode();
+					if (statusCode >= 200 && statusCode < 300){
+						String text = EntityUtils.toString(response.getEntity());
+						JSONObject jObject = new JSONObject(text);
+						uid = Integer.parseInt(jObject.getString("user_id"));
+					}
+				} catch (Exception e){
 				}
-			} catch (Exception e){
 			}
 			prefs.edit().putInt("userID", uid).commit();
 			return null;

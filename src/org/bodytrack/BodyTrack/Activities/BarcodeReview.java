@@ -6,9 +6,11 @@ import org.bodytrack.BodyTrack.R.id;
 import org.bodytrack.BodyTrack.R.layout;
 import org.bodytrack.BodyTrack.R.string;
 
+import android.app.AlertDialog;
 import android.app.ListActivity;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
@@ -29,8 +31,8 @@ public class BarcodeReview extends ListActivity {
 	
 	private Button getBarcode;
 	private DbAdapter dbAdapter;
-	private SimpleCursorAdapter bcAdapter;
-	private Cursor bccursor;
+	
+	private AlertDialog noZxingDialog;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -45,19 +47,22 @@ public class BarcodeReview extends ListActivity {
 		
         //connect to database
 		dbAdapter = new DbAdapter(ctx).open();
-		bccursor = dbAdapter.fetchAllBarcodes();
 		
 		Log.v(TAG, "Got DB adapter");
 		
 		//set list contents
-		bcAdapter = new SimpleCursorAdapter(
-				ctx, //context
-				android.R.layout.simple_list_item_1,
-				bccursor,
-				new String[] {DbAdapter.BC_KEY_BARCODE},
-				new int[] {android.R.id.text1}
-				);
-		setListAdapter(bcAdapter);
+		fillData();
+		
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setCancelable(false)
+        	.setTitle(R.string.no_zxing_title)
+            .setMessage(R.string.no_zxing)
+            .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int id) {
+                dialog.dismiss();
+                }
+            });
+        noZxingDialog = builder.create();
 	}
 	
     /**Handles the barcode button: Requests the ZXing app scan a barcode*/
@@ -68,7 +73,7 @@ public class BarcodeReview extends ListActivity {
 	    	try {
 	    		startActivityForResult(intent,0);
 	    	} catch (ActivityNotFoundException e) {
-   	
+	    		noZxingDialog.show();
 			}
 	    	
 	    }
@@ -81,8 +86,7 @@ public class BarcodeReview extends ListActivity {
 			try {
 				long code = Long.parseLong((intent.getStringExtra("SCAN_RESULT")));
 				dbAdapter.writeBarcode(code);
-				//TODO: catch the bug that makes the list not update until destroyed/rebuilt
-				bcAdapter.notifyDataSetChanged();
+				fillData();
 			}
 			catch (NumberFormatException e) {
 				Toast.makeText(this, R.string.barcodeFail, Toast.LENGTH_LONG);
@@ -90,6 +94,20 @@ public class BarcodeReview extends ListActivity {
 
 		} else {
 		}
+    }
+    
+    private void fillData() {
+        // Get all of the notes from the database and create the item list
+        Cursor c = dbAdapter.fetchAllBarcodes();
+        startManagingCursor(c);
+
+        String[] from = new String[] { dbAdapter.BC_KEY_BARCODE };
+        int[] to = new int[] { android.R.id.text1 };
+        
+        // Now create an array adapter and set it to display using our row
+        SimpleCursorAdapter barcodes =
+            new SimpleCursorAdapter(getApplicationContext(), android.R.layout.simple_list_item_1, c, from, to);
+        setListAdapter(barcodes);
     }
 
 }

@@ -19,6 +19,10 @@
    <string name="svcRunning">BodyTrack GPS tracker running</string>
    <string name="svcTitle">BodyTrack GPS Service</string>
    
+   <!--  Acceleerometer Service values -->
+   <string name="accSvcRunning">BodyTrack Accelerometer tracker running</string>
+   <string name="accSvcTitle">BodyTrack Accelerometer Service</string>
+   
     <!-- Camera values -->
   	<string name="tookPic">Picture stored</string>
   	<string name="takePic">Take a new meal photo</string>
@@ -59,4 +63,18 @@
   	<string name="title_password">Password</string>
   	<string name="sumary_password">bodytrack.org password</string>
   	<string name="dialog_title_password">Password</string>
+  	<string name="no_zxing">The zxing barcode scanner app is required to be able to scan barcodes.</string>
+  	<string name="no_zxing_title">Additional App Required</string>
+  	<string name="photo_prefs">Photo Preferences</string>
+  	<string name="title_photo_autodelete">Photo Autodelete</string>
+  	<string name="sumary_photo_autodelete">Delete photos once uploaded</string>
+  	<string name="title_network_toggle">Network Enabled</string>
+  	<string name="sumary_network_toggle">Enable uploading of data</string>
+  	<string name="network_disabled">Network Disabled</string>
+  	<string name="title_photo_autoupload">Photo Autoupload</string>
+  	<string name="sumary_photo_autoupload">Automatically upload photos after being taken.</string>
+  	<string name="dump_gps">Dump Data to CSV</string>
+  	<string name="start_acc">Start Accelerometer Tracking</string>
+  	<string name="stop_acc">Stop Accelerometer Tracking</string>
+  	<string name="dump_acc">Dump data to CSV</string>
 </resources>

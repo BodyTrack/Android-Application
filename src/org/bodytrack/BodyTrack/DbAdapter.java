@@ -83,6 +83,7 @@ public class DbAdapter {
 	   public static final String ACCEL_KEY_Y = "yvalue";
 	   public static final String ACCEL_KEY_Z = "zvalue";
 	   
+	   
 	   private static final String STACK_TABLE_CREATE =
 	        "create table stack (_id integer primary key autoincrement, "
 	                + "channel text not null, data text not null);";
@@ -132,6 +133,21 @@ public class DbAdapter {
 		mDbHelper.close();
 	}
 	
+	public long writeAcceleration(float[] values){
+		ContentValues accToPut = new ContentValues();
+		accToPut.put(ACCEL_KEY_TIME, System.currentTimeMillis());
+		accToPut.put(ACCEL_KEY_X, values[0]);
+		accToPut.put(ACCEL_KEY_Y, values[1]);
+		accToPut.put(ACCEL_KEY_Z, values[2]);
+		return mDb.insert(ACCEL_TABLE, null, accToPut);
+	}
+	
+	public Cursor fetchAllAccelerations(){
+		return mDb.query(ACCEL_TABLE, new String[] {ACCEL_KEY_ID,ACCEL_KEY_TIME,ACCEL_KEY_X,
+				ACCEL_KEY_Y, ACCEL_KEY_Z},
+                null, null, null, null, ACCEL_KEY_TIME);
+	}
+	
 	public long writeLocation(Location loc)
 	{
 		ContentValues locToPut = new ContentValues();
@@ -167,6 +183,10 @@ public class DbAdapter {
 		return mDb.delete(LOCATION_TABLE, LOC_KEY_ID + "=" + id, null);
 	}
 	
+	public long deleteAcceleration(long id) {
+		return mDb.delete(ACCEL_TABLE, ACCEL_KEY_ID + "=" + id, null);
+	}
+	
 	
 	//WARNING: TIME MUST BE FIRST COLUMN IN QUERIES. UPLOADER CODE DEPENDS ON THIS
     public Cursor fetchAllLocations() {
@@ -195,6 +215,17 @@ public class DbAdapter {
         }
         return mCursor;
 
+    }
+    
+    public Cursor fetchLastPicture(){
+    	Cursor mCursor =
+
+            mDb.query(true, PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOADED}, "1", null,
+                    null, null, PIX_KEY_ID + " desc", "1");
+        if (mCursor != null) {
+            mCursor.moveToFirst();
+        }
+        return mCursor;
     }
     
     public long setPictureUploaded(long id, boolean uploaded){
