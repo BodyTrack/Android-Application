@@ -64,6 +64,10 @@ public class PreferencesAdapter {
 		return prefs.getString("password", INVALID_PASSWORD);
 	}
 	
+	public String getNickName(){
+		return prefs.getString("deviceNickName", "");
+	}
+	
 	public boolean autoDeletePhotosEnabled(){
 		return prefs.getBoolean("photoAutodelete", false);
 	}
@@ -76,8 +80,26 @@ public class PreferencesAdapter {
 		return prefs.getBoolean("networkEnabled", true);
 	}
 	
+	public boolean isPhotoBGUploadEnabled(){
+		return prefs.getBoolean("photoUploadBG", true);
+	}
+	
+	private boolean isNickNameValid(){
+		String nickname = getNickName();
+		if (!nickname.equals(""))
+			for (int i = 0; i < nickname.length(); i++){
+				char curChar = nickname.charAt(i);
+				if (!((curChar >= 'a' && curChar <= 'z') || 
+						(curChar >= 'A' && curChar <= 'Z') || 
+						(curChar >= '0' || curChar <= '9') ||
+						curChar == '_'))
+						return false;
+			}
+		return true;	
+	}
+	
 	public boolean prefsAreGood(){
-		return (!isNetworkEnabled() || getUserID() != PreferencesAdapter.INVALID_USER_ID);
+		return (!isNetworkEnabled() || getUserID() != PreferencesAdapter.INVALID_USER_ID) && isNickNameValid();
 	}
 	
 	public void obtainUserID(HomeTabbed home){

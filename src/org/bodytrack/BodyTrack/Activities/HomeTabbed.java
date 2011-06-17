@@ -57,11 +57,14 @@ public class HomeTabbed extends TabActivity {
 	public static final String TAG = "HomeTabbed";
 	public static final int ACTIVITY_PREFERENCES = 1;
 	
+	private static final long MAX_DATA_UPLOAD = 1000; //maximum data points to upload at a time.
+	private static final long UPLOAD_RATE = 5000; //milliseconds between upload checks
+	
 	private PreferencesAdapter prefAdapter;
 	private AlertDialog prefConfigDialog;
 	
 	private JSONArray gpsChannelArray = new JSONArray();
-	private final String[] gpsChannelArrayElements = {"latitude","longitude","altitude","uncertainty in meters","speed","bearing"};
+	private final String[] gpsChannelArrayElements = {"latitude","longitude","altitude","uncertainty in meters","speed","bearing","provider"};
 
 	private JSONArray accChannelArray = new JSONArray();
 	private final String[] accChannelArrayElements = {"acceleration_x","acceleration_y","acceleration_z"};
@@ -128,7 +131,7 @@ public class HomeTabbed extends TabActivity {
         	prefConfigDialog.show();
         }
 	    
-	    //This is the timer that sends the data after every 15 seconds.
+	    //This is the timer that sends the data periodically.
 	    time.scheduleAtFixedRate(new TimerTask()
 	    {
 	   	public void run()
@@ -141,7 +144,7 @@ public class HomeTabbed extends TabActivity {
 	    	});
 	    	}
 	    }
-	    ,15000,15000);
+	    ,UPLOAD_RATE,UPLOAD_RATE);
 	}
 
 		
@@ -249,13 +252,16 @@ public class HomeTabbed extends TabActivity {
 	}
 	
 private class UploaderTask extends AsyncTask<Void, Void, Void> {
-		
-		private int numUploaded = 0;
-		private int totalToUpload;
-		
+		//TODO: clean this up!
 	     protected Void doInBackground(Void... params) {	
 	    	//upload gps data
- 			Cursor c = dbAdapter.fetchAllLocations();
+	    	
+	    	HttpClient mHttpClient = new DefaultHttpClient();
+			HttpPost postToServer = new HttpPost(prefAdapter.getUploadAddress());
+			WifiManager wifiManager = (WifiManager) HomeTabbed.this.getSystemService(Context.WIFI_SERVICE);
+			WifiInfo address = wifiManager.getConnectionInfo();
+	    	 
+ 			Cursor c = dbAdapter.fetchLocations(MAX_DATA_UPLOAD);
  			
  			JSONArray dataArray = new JSONArray();
  			
@@ -275,6 +281,7 @@ private class UploaderTask extends AsyncTask<Void, Void, Void> {
 						locData.put(loc.getAccuracy());
 						locData.put(loc.getSpeed());
 						locData.put(loc.getBearing());
+						locData.put(loc.getProvider());
 						dataArray.put(locData);
 					}
 					catch (JSONException e){
@@ -286,17 +293,15 @@ private class UploaderTask extends AsyncTask<Void, Void, Void> {
  				}
  			}
  			c.close();
+ 			
  			if (dataArray.length() > 0){
- 				HttpClient mHttpClient = new DefaultHttpClient();
- 		    	HttpPost postToServer = new HttpPost(prefAdapter.getUploadAddress());
- 		    	WifiManager wifiManager = (WifiManager) HomeTabbed.this.getSystemService(Context.WIFI_SERVICE);
- 		    	WifiInfo address = wifiManager.getConnectionInfo();
  		    	try {
  		    		List<NameValuePair> postRequest = new ArrayList<NameValuePair>();
  			    	postRequest.add(new BasicNameValuePair("device_id", address.getMacAddress()));
  			    	postRequest.add(new BasicNameValuePair("timezone","UTC"));
  			    	postRequest.add(new BasicNameValuePair("device_class",android.os.Build.MODEL));
- 			    	postRequest.add(new BasicNameValuePair("channel_names", gpsChannelArray.toString())); 
+ 			    	postRequest.add(new BasicNameValuePair("dev_nickname",prefAdapter.getNickName()));
+ 			    	postRequest.add(new BasicNameValuePair("channel_names", gpsChannelArray.toString()));
  			    	postRequest.add(new BasicNameValuePair("data", dataArray.toString()));
  		    		postToServer.setEntity(new UrlEncodedFormEntity(postRequest));
  		    		HttpResponse response = mHttpClient.execute(postToServer);
@@ -315,7 +320,7 @@ private class UploaderTask extends AsyncTask<Void, Void, Void> {
  	    		}
  			}
  			//upload accelerometer data
- 			c = dbAdapter.fetchAllAccelerations();
+ 			c = dbAdapter.fetchAccelerations(MAX_DATA_UPLOAD);
  			
  			dataArray = new JSONArray();
  			
@@ -346,16 +351,14 @@ private class UploaderTask extends AsyncTask<Void, Void, Void> {
  				}
  			}
  			c.close();
+ 			
  			if (dataArray.length() > 0){
- 				HttpClient mHttpClient = new DefaultHttpClient();
- 		    	HttpPost postToServer = new HttpPost(prefAdapter.getUploadAddress());
- 		    	WifiManager wifiManager = (WifiManager) HomeTabbed.this.getSystemService(Context.WIFI_SERVICE);
- 		    	WifiInfo address = wifiManager.getConnectionInfo();
  		    	try {
  		    		List<NameValuePair> postRequest = new ArrayList<NameValuePair>();
  			    	postRequest.add(new BasicNameValuePair("device_id", address.getMacAddress()));
  			    	postRequest.add(new BasicNameValuePair("timezone","UTC"));
  			    	postRequest.add(new BasicNameValuePair("device_class",android.os.Build.MODEL));
+ 			    	postRequest.add(new BasicNameValuePair("dev_nickname",prefAdapter.getNickName()));
  			    	postRequest.add(new BasicNameValuePair("channel_names", accChannelArray.toString())); 
  			    	postRequest.add(new BasicNameValuePair("data", dataArray.toString()));
  		    		postToServer.setEntity(new UrlEncodedFormEntity(postRequest));
@@ -374,6 +377,55 @@ private class UploaderTask extends AsyncTask<Void, Void, Void> {
  	    			dbAdapter.deleteAcceleration(accelerationIds.remove(0));
  	    		}
  			}
+ 			
+			
+			try {
+				
+				c = dbAdapter.fetchFirstPendingUploadPic();
+				final long id = c.getLong(c.getColumnIndex(DbAdapter.PIX_KEY_ID));
+				String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
+			    c.close();
+			    
+			    FileInputStream fis = openFileInput(picFileName);
+			    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+			    
+			    byte[] buffer = new byte[1024];
+			    int read = 0;
+			    
+			    while (read >= 0){
+			    	read = fis.read(buffer);
+			    	if (read > 0){
+			    		bos.write(buffer,0,read);
+			    	}
+			    }
+			    
+			    fis.close();
+			    
+			    
+				ByteArrayBody bin = new ByteArrayBody(bos.toByteArray(), "image/jpeg", picFileName);
+				MultipartEntity reqEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
+				reqEntity.addPart("device_id",new StringBody(address.getMacAddress()));
+				reqEntity.addPart("device_class",new StringBody(android.os.Build.MODEL));
+				reqEntity.addPart("dev_nickname",new StringBody(prefAdapter.getNickName()));
+				reqEntity.addPart("photo",bin);
+				postToServer.setEntity(reqEntity);
+				HttpResponse response = mHttpClient.execute(postToServer);
+				StatusLine status = response.getStatusLine();
+				if (status.getStatusCode() >= 200 && status.getStatusCode() < 300){
+					dbAdapter.setPictureUploadState(id,DbAdapter.PIC_UPLOADED);
+					final CameraReview camRev = CameraReview.activeInstance;
+					if (camRev != null){
+						HomeTabbed.this.runOnUiThread(new Runnable(){
+							public void run(){
+								camRev.onImageUploaded(id);
+							}
+						});
+						
+					}
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			} 			
 	         return null;
 	     }
 

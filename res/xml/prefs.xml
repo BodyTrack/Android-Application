@@ -1,26 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen 
-	xmlns:android="http://schemas.android.com/apk/res/android">
-	<PreferenceCategory android:title="@string/device_prefs">
-		<EditTextPreference android:key="deviceNickName"></EditTextPreference>
-	</PreferenceCategory><PreferenceCategory android:title="@string/netPrefs"><EditTextPreference
+	xmlns:android="http://schemas.android.com/apk/res/android"><PreferenceCategory android:title="@string/netPrefs"><EditTextPreference
                 android:key="userName" android:title="@string/title_user_name" android:summary="@string/sumary_user_name" android:dialogTitle="@string/dialog_title_user_name"/><EditTextPreference
-                android:key="password" android:password="true" android:summary="@string/sumary_password" android:dialogTitle="@string/dialog_title_password" android:title="@string/title_password"/>
+                android:key="password" android:password="true" android:summary="@string/sumary_password" android:dialogTitle="@string/dialog_title_password" android:title="@string/title_password"/><EditTextPreference android:key="deviceNickName" android:summary="@string/sumary_device_nickname" android:title="@string/title_device_nickname"></EditTextPreference>
                 
                 <CheckBoxPreference android:key="networkEnabled" android:title="@string/title_network_toggle" android:summary="@string/sumary_network_toggle" android:defaultValue="true"></CheckBoxPreference>
-	</PreferenceCategory>
-	<PreferenceCategory android:title="@string/gpsPrefs">
-        <ListPreference 
-        	android:key="gps_provider"
-        	android:title="@string/title_gps_provider" 
-        	android:dialogTitle="@string/title_gps_provider"
-        	android:entries="@array/gps_provider"
-        	android:entryValues="@array/gps_provider" />
-    	
 	</PreferenceCategory>
 	<PreferenceCategory android:title="@string/photo_prefs">
 		<CheckBoxPreference android:key="photoAutodelete" android:title="@string/title_photo_autodelete" android:summary="@string/sumary_photo_autodelete" android:defaultValue="false"></CheckBoxPreference>
 		<CheckBoxPreference android:defaultValue="false" android:key="photoAutoupload" android:title="@string/title_photo_autoupload" android:summary="@string/sumary_photo_autoupload"></CheckBoxPreference>
+		<CheckBoxPreference android:summary="@string/sumary_upload_photos_bg" android:title="@string/upload_photos_bg_title" android:key="photoUploadBG" android:defaultValue="true"></CheckBoxPreference>
 	</PreferenceCategory>
 	
 </PreferenceScreen>

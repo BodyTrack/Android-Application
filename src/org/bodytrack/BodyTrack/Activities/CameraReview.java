@@ -55,6 +55,8 @@ public class CameraReview extends Activity {
 	public static final String TAG = "cameraReview";
 	
 	private Button takePic, uploadPics, deletePics;
+	
+	private static final int PIC_CACHE_LIMIT = 10; //limit of images to cache in ram for display
 
 	private DbAdapter dbAdapter;
 	
@@ -67,13 +69,19 @@ public class CameraReview extends Activity {
 	public static final int DELETE_ID = 0,
 							UPLOAD_ID = 1;
 	
+	public static CameraReview activeInstance = null; //a poor way to get a pointer to the activity
+	
 	private AlertDialog uploadCompleteDialog;
 	
 	private PreferencesAdapter prefAdapter;
 	
+	private long currentContextMenuId = -1;
+	
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.camera_review);
+		
+		activeInstance = this;
 		
 		prefAdapter = new PreferencesAdapter(this);
 		
@@ -137,13 +145,14 @@ public class CameraReview extends Activity {
 		@Override
 		public void onClick(View v) {
 			dbAdapter.deleteUploadedPictures();
-			((ImageAdapter) picGallery.getAdapter()).notifyDataSetChanged();
+			refreshGallery();
 		}
 		
 	};
 	
 	public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
 	    super.onCreateContextMenu(menu, v, menuInfo);
+	    currentContextMenuId = ((AdapterContextMenuInfo)menuInfo).id;
 	    menu.add(0, DELETE_ID, 0, R.string.picture_delete);
 	    boolean enabled;
 		
@@ -152,10 +161,23 @@ public class CameraReview extends Activity {
 	    	menu.add(0, UPLOAD_ID, 0, R.string.network_disabled);
 	    }
 	    else{
-	    	Cursor c = dbAdapter.fetchPicture(((AdapterContextMenuInfo)menuInfo).id);
-	    	enabled = c.getInt(c.getColumnIndex(DbAdapter.PIX_KEY_UPLOADED)) == 0;
+	    	Cursor c = dbAdapter.fetchPicture(currentContextMenuId);
+	    	int state = c.getInt(c.getColumnIndex(DbAdapter.PIX_KEY_UPLOAD_STATE));
+	    	enabled = state == DbAdapter.PIC_NOT_UPLOADED;
+	    	int titleRes;
 	    	c.close();
-	    	menu.add(0, UPLOAD_ID, 0, enabled ? R.string.picture_upload : R.string.picture_already_uploaded);
+	    	switch (state){
+		    	default:
+		    		titleRes = R.string.picture_upload;
+		    		break;
+		    	case DbAdapter.PIC_PENDING_UPLOAD:
+		    		titleRes = R.string.picture_pending_upload;
+		    		break;
+		    	case DbAdapter.PIC_UPLOADED:
+		    		titleRes = R.string.picture_already_uploaded;
+		    		break;
+	    	}
+	    	menu.add(0, UPLOAD_ID, 0, titleRes);
 	    }
 	    
 		menu.getItem(UPLOAD_ID).setEnabled(enabled);
@@ -164,11 +186,12 @@ public class CameraReview extends Activity {
 	
 	public boolean onContextItemSelected(MenuItem item) {
 		 AdapterContextMenuInfo info = (AdapterContextMenuInfo) item.getMenuInfo();
+		 currentContextMenuId = -1;
 	    switch(item.getItemId()) {
 		    case DELETE_ID:
 		    {
 			     dbAdapter.deletePicture(info.id);
-			     ((ImageAdapter) picGallery.getAdapter()).notifyDataSetChanged();
+			     refreshGallery();
 		        return true;
 		    }
 		    case UPLOAD_ID:
@@ -181,20 +204,27 @@ public class CameraReview extends Activity {
 	}
 	
 	public void uploadPhotos(Long... ids){
-		uploadDialog = new ProgressDialog(this);
-    	uploadDialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
-
-    	    @Override
-    	    public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
-    	        if (keyCode == KeyEvent.KEYCODE_SEARCH && event.getRepeatCount() == 0) {
-    	            return true; // Pretend we processed it
-    	        }
-    	        return false; // Any other keys are still processed as normal
-    	    }
-    	});
-    	uploadDialog.setCancelable(false);
-    	uploadDialog.show();
-    	new UploadImageTask().execute(ids);
+		if (prefAdapter.isPhotoBGUploadEnabled()){
+			for (int i = 0; i < ids.length; i++){
+				dbAdapter.setPictureUploadState(ids[i], DbAdapter.PIC_PENDING_UPLOAD);
+			}
+		}
+		else{
+			uploadDialog = new ProgressDialog(this);
+	    	uploadDialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
+	
+	    	    @Override
+	    	    public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
+	    	        if (keyCode == KeyEvent.KEYCODE_SEARCH && event.getRepeatCount() == 0) {
+	    	            return true; // Pretend we processed it
+	    	        }
+	    	        return false; // Any other keys are still processed as normal
+	    	    }
+	    	});
+	    	uploadDialog.setCancelable(false);
+	    	uploadDialog.show();
+	    	new UploadImageTask().execute(ids);
+		}
 	}
 	
 	protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
@@ -203,7 +233,7 @@ public class CameraReview extends Activity {
         switch(requestCode) {
 	        case ACTIVITY_NEW_PICTURE:
 	        	if (resultCode == RESULT_OK){
-	        		((ImageAdapter) picGallery.getAdapter()).notifyDataSetChanged();
+	        		refreshGallery();
 	        		if (prefAdapter.autoUploadPhotosEnabled()){
 	        			Cursor c = dbAdapter.fetchLastPicture();
 	        			long id = c.getLong(c.getColumnIndex(DbAdapter.LOC_KEY_ID));
@@ -221,6 +251,20 @@ public class CameraReview extends Activity {
 		uploadPics.setEnabled(prefAdapter.isNetworkEnabled());
 	}
 	
+	protected void refreshGallery(){
+		if (currentContextMenuId != -1){
+			closeContextMenu();
+		}
+		((ImageAdapter) picGallery.getAdapter()).notifyDataSetChanged();
+	}
+	
+	public void onImageUploaded(long id){
+		if (prefAdapter.autoDeletePhotosEnabled()){
+			dbAdapter.deletePicture(id);
+			refreshGallery();
+		}
+	}
+	
 	public class ImageAdapter extends BaseAdapter {
 	    int mGalleryItemBackground;
 	    private Context mContext;
@@ -234,6 +278,36 @@ public class CameraReview extends Activity {
 	        mGalleryItemBackground = a.getResourceId(
 	                R.styleable.PictureGallery_android_galleryItemBackground, 0);
 	        a.recycle();
+	    }
+	    
+	    private void putBitmapInCache(long imageId, Bitmap bm){
+	    	pictureIDs.add(imageId);
+	        bms.add(bm);
+	        if (pictureIDs.size() > PIC_CACHE_LIMIT){
+	        	int minIndex = PIC_CACHE_LIMIT;
+	        	long min = imageId;
+	        	int maxIndex = PIC_CACHE_LIMIT;
+	        	long max = imageId;
+	        	for (int i = 0; i < PIC_CACHE_LIMIT; i++){
+	        		long curId = pictureIDs.get(i);
+	        		if (curId < min){
+	        			min = curId;
+	        			minIndex = i;
+	        		}
+	        		else if (curId > max){
+	        			max = curId;
+	        			maxIndex = i;
+	        		}
+	        	}
+	        	if (min != imageId){
+	        		pictureIDs.remove(minIndex);
+	        		bms.remove(minIndex);
+	        	}
+	        	else if (max != imageId){
+	        		pictureIDs.remove(maxIndex);
+	        		bms.remove(maxIndex);
+	        	}
+	        }
 	    }
 	    
 	    private Bitmap getBitmap(long imageId) throws IOException{
@@ -253,7 +327,7 @@ public class CameraReview extends Activity {
 		        Bitmap bm = BitmapFactory.decodeStream(fis,null,opts);
 		        fis.close();
 		        
-		        bms.add(bm);
+		        putBitmapInCache(imageId, bm);
 		        return bm;
 	        }
 	    	else{
@@ -362,16 +436,15 @@ public class CameraReview extends Activity {
 					MultipartEntity reqEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
 					reqEntity.addPart("device_id",new StringBody(address.getMacAddress()));
 					reqEntity.addPart("device_class",new StringBody(android.os.Build.MODEL));
+					reqEntity.addPart("dev_nickname",new StringBody(prefAdapter.getNickName()));
 					reqEntity.addPart("photo",bin);
 					postToServer.setEntity(reqEntity);
 					HttpResponse response = mHttpClient.execute(postToServer);
 					StatusLine status = response.getStatusLine();
 					if (status.getStatusCode() >= 200 && status.getStatusCode() < 300){
-						dbAdapter.setPictureUploaded(ids[i],true);
+						dbAdapter.setPictureUploadState(ids[i],DbAdapter.PIC_UPLOADED);
 						numUploaded++;
-						if (prefAdapter.autoDeletePhotosEnabled()){
-							dbAdapter.deletePicture(ids[i]);
-						}
+						onImageUploaded(ids[i]);
 					}
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -390,9 +463,6 @@ public class CameraReview extends Activity {
 	     }
 
 	     protected void onPostExecute(Long result) {
-	    	 if (prefAdapter.autoDeletePhotosEnabled() && numUploaded > 0){
-	    		 ((ImageAdapter) picGallery.getAdapter()).notifyDataSetChanged();
-	    	 }
 	    	 uploadDialog.dismiss();
 	    	 if (totalToUpload == 1){
 	    		 if (numUploaded == 1){

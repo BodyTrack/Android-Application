@@ -48,7 +48,7 @@
   	<string name="failedToSavePic">Failed to store the picture!</string>
   	<string name="picture_delete">Delete</string>
   	<string name="picture_upload">Upload</string>
-  	<string name="picture_already_uploaded">Already Uploaded</string>
+  	<string name="picture_pending_upload">Pending Upload</string><string name="picture_already_uploaded">Already Uploaded</string>
   	<string name="upload_all_pics">Upload All</string>
   	<string name="upload_complete">Uploads Complete</string>
   	<string name="no_images_to_upload">No images to upload.</string>
@@ -77,4 +77,8 @@
   	<string name="start_acc">Start Accelerometer Tracking</string>
   	<string name="stop_acc">Stop Accelerometer Tracking</string>
   	<string name="dump_acc">Dump data to CSV</string>
+  	<string name="upload_photos_bg_title">Upload in Background</string>
+  	<string name="sumary_upload_photos_bg">"Don't freeze up the UI while photos are being uploaded"</string>
+  	<string name="title_device_nickname">Nickname</string>
+  	<string name="sumary_device_nickname">Nickname that will be associated with data from this phone.</string>
 </resources>

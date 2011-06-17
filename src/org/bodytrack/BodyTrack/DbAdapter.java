@@ -27,6 +27,10 @@ public class DbAdapter {
 	private static String DB_NAME = "BodytrackDB";
 	private static int DB_VERSION = 1;
 	
+	public static final int PIC_NOT_UPLOADED = 0;
+	public static final int PIC_PENDING_UPLOAD = 1;
+	public static final int PIC_UPLOADED = 2;
+	
 	
 	//Location table creation SQL
 	
@@ -61,13 +65,13 @@ public class DbAdapter {
     //Photo table creation SQL
     private static final String PIX_TABLE_CREATE =
         "create table pix (_id integer primary key autoincrement, "
-                + "time integer not null, pic string not null, uploaded integer not null);";
+                + "time integer not null, pic string not null, uploadstate integer not null);";
     //fields of photo table
 	public static final String PIX_TABLE = "pix";
 	public static final String	PIX_KEY_ID = "_id";
 	public static final String	PIX_KEY_TIME = "time";
 	public static final String PIX_KEY_PIC = "pic";
-	public static final String PIX_KEY_UPLOADED = "uploaded";
+	public static final String PIX_KEY_UPLOAD_STATE = "uploadstate";
 	
 
 	//Accelerometer table creation
@@ -143,9 +147,17 @@ public class DbAdapter {
 	}
 	
 	public Cursor fetchAllAccelerations(){
+		return fetchAccelerations(null);
+	}
+	
+	public Cursor fetchAccelerations(long limit){
+		return fetchAccelerations("" + limit);
+	}
+	
+	private Cursor fetchAccelerations(String limit){
 		return mDb.query(ACCEL_TABLE, new String[] {ACCEL_KEY_ID,ACCEL_KEY_TIME,ACCEL_KEY_X,
 				ACCEL_KEY_Y, ACCEL_KEY_Z},
-                null, null, null, null, ACCEL_KEY_TIME);
+                null, null, null, null, ACCEL_KEY_TIME, limit);
 	}
 	
 	public long writeLocation(Location loc)
@@ -190,25 +202,53 @@ public class DbAdapter {
 	
 	//WARNING: TIME MUST BE FIRST COLUMN IN QUERIES. UPLOADER CODE DEPENDS ON THIS
     public Cursor fetchAllLocations() {
-        return mDb.query(LOCATION_TABLE, new String[] {LOC_KEY_ID, LOC_KEY_TIME, LOC_KEY_LATITUDE, 
+        return fetchLocations(null);
+    }
+    
+    public Cursor fetchLocations(long limit){
+    	return fetchLocations("" + limit);
+    }
+    
+    private Cursor fetchLocations(String limit){
+    	return mDb.query(LOCATION_TABLE, new String[] {LOC_KEY_ID, LOC_KEY_TIME, LOC_KEY_LATITUDE, 
         		LOC_KEY_LONGITUDE, LOC_KEY_ACCURACY, LOC_KEY_ALTITUDE,
         		LOC_KEY_BEARING, LOC_KEY_PROVIDER, LOC_KEY_SPEED},
-                null, null, null, null, LOC_KEY_TIME);
+                null, null, null, null, LOC_KEY_TIME, limit);
     }
     
     public Cursor fetchAllPics() {
-    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOADED}, null, null, null, null, LOC_KEY_TIME);
+    	return fetchPics(null);
+    }
+    
+    public Cursor fetchPics(long limit){
+    	return fetchPics("" + limit);
+    }
+    
+    private Cursor fetchPics(String limit){
+    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, null, null, null, null, LOC_KEY_TIME, limit);
     }
     
     public Cursor fetchAllUnuploadedPics() {
-    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOADED}, PIX_KEY_UPLOADED + " = 0", null, null, null, LOC_KEY_TIME);
+    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, PIX_KEY_UPLOAD_STATE + " = " + PIC_NOT_UPLOADED, null, null, null, PIX_KEY_ID);
+    }
+    
+    public Cursor fetchAllPendingUploadPics(){
+    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, PIX_KEY_UPLOAD_STATE + " = " + PIC_PENDING_UPLOAD, null, null, null, PIX_KEY_ID);
+    }
+    
+    public Cursor fetchFirstPendingUploadPic(){
+    	Cursor c = mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, PIX_KEY_UPLOAD_STATE + " = " + PIC_PENDING_UPLOAD, null, null, null, PIX_KEY_ID, "1");
+    	if (c != null){
+    		c.moveToFirst();
+    	}
+    	return c;
     }
     
     public Cursor fetchPicture(long id) {
 
         Cursor mCursor =
 
-            mDb.query(true, PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOADED}, PIX_KEY_ID + "=" + id, null,
+            mDb.query(true, PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, PIX_KEY_ID + "=" + id, null,
                     null, null, null, null);
         if (mCursor != null) {
             mCursor.moveToFirst();
@@ -220,7 +260,7 @@ public class DbAdapter {
     public Cursor fetchLastPicture(){
     	Cursor mCursor =
 
-            mDb.query(true, PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOADED}, "1", null,
+            mDb.query(true, PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, "1", null,
                     null, null, PIX_KEY_ID + " desc", "1");
         if (mCursor != null) {
             mCursor.moveToFirst();
@@ -228,9 +268,9 @@ public class DbAdapter {
         return mCursor;
     }
     
-    public long setPictureUploaded(long id, boolean uploaded){
+    public long setPictureUploadState(long id, int state){
     	ContentValues updateUploaded = new ContentValues();
-    	updateUploaded.put(PIX_KEY_UPLOADED, uploaded ? 1 : 0);
+    	updateUploaded.put(PIX_KEY_UPLOAD_STATE, state);
     	return mDb.update(PIX_TABLE, updateUploaded, PIX_KEY_ID + "=" + id, null);
     }
     
@@ -245,7 +285,7 @@ public class DbAdapter {
     }
     
     public long deleteUploadedPictures(){
-    	Cursor c = mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOADED}, PIX_KEY_UPLOADED + " = 1", null, null, null, LOC_KEY_TIME);
+    	Cursor c = mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, PIX_KEY_UPLOAD_STATE + " = 1", null, null, null, LOC_KEY_TIME);
     	c.moveToFirst();
     	while (!c.isAfterLast()){
     		String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
@@ -253,7 +293,7 @@ public class DbAdapter {
     		c.moveToNext();
     	}
     	
-        return mDb.delete(PIX_TABLE, PIX_KEY_UPLOADED + "=1", null);
+        return mDb.delete(PIX_TABLE, PIX_KEY_UPLOAD_STATE + "=" + PIC_UPLOADED, null);
     }
     
 	//WARNING: TIME MUST BE FIRST COLUMN IN QUERIES. UPLOADER CODE DEPENDS ON THIS
@@ -282,7 +322,7 @@ public class DbAdapter {
 		
 		picToPut.put(PIX_KEY_PIC, picFileName);
 		picToPut.put(PIX_KEY_TIME, System.currentTimeMillis());
-		picToPut.put(PIX_KEY_UPLOADED, 0);
+		picToPut.put(PIX_KEY_UPLOAD_STATE, 0);
 		long result = mDb.insert(PIX_TABLE, null, picToPut);
 		if (result == 0){
 			mCtx.deleteFile(picFileName);
