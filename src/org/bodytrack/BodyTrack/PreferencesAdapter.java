@@ -15,6 +15,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.bodytrack.BodyTrack.Activities.CameraReview;
+import org.bodytrack.BodyTrack.Activities.BodyTrackExceptionHandler;
 import org.bodytrack.BodyTrack.Activities.HomeTabbed;
 import org.json.JSONObject;
 
@@ -126,6 +127,7 @@ public class PreferencesAdapter {
 		
 		@Override
 		protected Void doInBackground(HomeTabbed... objs) {
+			Thread.setDefaultUncaughtExceptionHandler(new BodyTrackExceptionHandler());
 			caller = objs[0];
 			int uid = INVALID_USER_ID;
 			if (isNetworkEnabled()){
@@ -151,7 +153,13 @@ public class PreferencesAdapter {
 		}
 		
 		protected void onPostExecute(Void result) {
-			obtainingUserIDDialog.dismiss();
+			try{
+				obtainingUserIDDialog.dismiss();
+			}
+			catch (Exception e){
+				
+			}
+			obtainingUserIDDialog = null;
 			caller.onUserIDUpdated();
 		}
 		

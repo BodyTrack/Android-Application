@@ -16,8 +16,8 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.bodytrack.BodyTrack.DbAdapter;
-import org.bodytrack.BodyTrack.GpsService;
-import org.bodytrack.BodyTrack.IGPSSvcRPC;
+import org.bodytrack.BodyTrack.BTService;
+import org.bodytrack.BodyTrack.IBTSvcRPC;
 import org.bodytrack.BodyTrack.R;
 import org.json.JSONArray;
 
@@ -58,7 +58,7 @@ public class GpsSvcControl extends Activity{
 	
 	protected SharedPreferences prefs;
 	
-	private IGPSSvcRPC gpsBinder;
+	private IBTSvcRPC gpsBinder;
 	
     /** Called when the activity is first created. */
     @Override
@@ -82,7 +82,7 @@ public class GpsSvcControl extends Activity{
         
         //Open/connect to the GPS logging service & check its state
     	Context ctx = getApplicationContext();
-    	Intent intent = new Intent(ctx, GpsService.class);
+    	Intent intent = new Intent(ctx, BTService.class);
     	ctx.startService(intent);
     	Boolean bindSuccess = ctx.bindService(intent, sc, 0);
         
@@ -119,12 +119,12 @@ public class GpsSvcControl extends Activity{
 		
     }
     
-    protected void serviceBound(IGPSSvcRPC binder) {
+    protected void serviceBound(IBTSvcRPC binder) {
         //Log.v(TAG, "Telling GPS service to start. Success? " + bindSuccess);
     	this.gpsBinder = binder;
     	try {
-        	gpsSvcStartButton.setEnabled(!binder.isLogging());
-        	gpsSvcStopButton.setEnabled(binder.isLogging());
+        	gpsSvcStartButton.setEnabled(!binder.isLogging(BTService.GPS_LOGGING));
+        	gpsSvcStopButton.setEnabled(binder.isLogging(BTService.GPS_LOGGING));
         //TODO catch
     	} catch (Exception e){}
 	
@@ -135,7 +135,7 @@ public class GpsSvcControl extends Activity{
         gpsSvcStopButton.setEnabled(true);
         
         try {
-        	gpsBinder.startLogging();
+        	gpsBinder.startLogging(BTService.GPS_LOGGING);
         } catch(Exception e) {
         	Log.e(TAG, "Failed to start logging in GPS Service; exception: " + e);
         }
@@ -147,7 +147,7 @@ public class GpsSvcControl extends Activity{
     	try {
             gpsSvcStartButton.setEnabled(true);
             gpsSvcStopButton.setEnabled(false);
-            gpsBinder.stopLogging();
+            gpsBinder.stopLogging(BTService.GPS_LOGGING);
     	} catch (Exception e) {
             Log.e(TAG, "Attempting to stop GPS service which wasn't running; exception:" + e.toString());
     	}
@@ -242,7 +242,7 @@ public class GpsSvcControl extends Activity{
     	
     	@Override
 		public void onServiceConnected(ComponentName svc, IBinder binder) {
-    		gpsBinder = IGPSSvcRPC.Stub.asInterface(binder);
+    		gpsBinder = IBTSvcRPC.Stub.asInterface(binder);
     		serviceBound(gpsBinder);
 			Log.v(TAG, "Service connected");
 		}

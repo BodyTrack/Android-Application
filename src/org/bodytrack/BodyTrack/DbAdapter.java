@@ -1,5 +1,6 @@
 package org.bodytrack.BodyTrack;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -12,6 +13,7 @@ import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.location.Location;
+import android.os.Environment;
 import android.util.Log;
 
 /**
@@ -77,8 +79,8 @@ public class DbAdapter {
 	//Accelerometer table creation
 	   private static final String ACCEL_TABLE_CREATE =
 	        "create table accel (_id integer primary key autoincrement, "
-	                + "time integer not null, xvalue integer not null, yvalue integer not null, " +
-	                		"zvalue integer not null);";
+	                + "time integer not null, xvalue real not null, yvalue real not null, " +
+	                		"zvalue real not null);";
 	//fields of Accelerometer
 	   public static final String ACCEL_TABLE = "accel";
 	   public static final String ACCEL_KEY_ID = "_id";
@@ -87,14 +89,36 @@ public class DbAdapter {
 	   public static final String ACCEL_KEY_Y = "yvalue";
 	   public static final String ACCEL_KEY_Z = "zvalue";
 	   
+	 //fields of wifi
+	   public static final String WIFI_TABLE = "wifi";
+	   public static final String WIFI_KEY_ID = "_id";
+	   public static final String WIFI_KEY_TIME = "time";
+	   public static final String WIFI_KEY_SSID = "ssid";
+	   public static final String WIFI_KEY_BSSID = "bssid";
 	   
-	   private static final String STACK_TABLE_CREATE =
-	        "create table stack (_id integer primary key autoincrement, "
-	                + "channel text not null, data text not null);";
-		public static final String STACK_TABLE = "stack";
-		public static final String STACK_KEY_ID = "_id";
-		public static final String STACK_KEY_DATA = "data";
-		public static final String STACK_KEY_CHANNEL = "channel";
+	 //wifi table creation
+	   private static final String WIFI_TABLE_CREATE = "create table " + WIFI_TABLE + " (" +
+	   			WIFI_KEY_ID + " integer primary key autoincrement, " +
+	   			WIFI_KEY_TIME + " integer not null, " +
+	   			WIFI_KEY_SSID + " string not null," +
+	   			WIFI_KEY_BSSID + " string nto null);";
+	   
+	   
+	 //fields of gyroscope
+	   public static final String GYRO_TABLE = "gyro";
+	   public static final String GYRO_KEY_ID = "_id";
+	   public static final String GYRO_KEY_TIME = "time";
+	   public static final String GYRO_KEY_X = "xvalue";
+	   public static final String GYRO_KEY_Y = "yvalue";
+	   public static final String GYRO_KEY_Z = "zvalue";
+	   
+	 //gyroscope table creation
+	   private static final String GYRO_TABLE_CREATE = "create table " + GYRO_TABLE + " (" +
+	   				GYRO_KEY_ID + " integer primary key autoincrement, " +
+	   				GYRO_KEY_TIME + " integer not null, " +
+	   				GYRO_KEY_X + " real not null," +
+	   				GYRO_KEY_Y + " real not null," +
+	   				GYRO_KEY_Z + " real not null);";
     
     private DatabaseHelper mDbHelper;
     private Context mCtx;
@@ -114,8 +138,9 @@ public class DbAdapter {
 			db.execSQL(BARCODE_TABLE_CREATE);
 			db.execSQL(PIX_TABLE_CREATE);
 			db.execSQL(ACCEL_TABLE_CREATE);
-			db.execSQL(STACK_TABLE_CREATE);
-			}
+			db.execSQL(WIFI_TABLE_CREATE);
+			db.execSQL(GYRO_TABLE_CREATE);
+		}
 
 		@Override
 		public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
@@ -137,9 +162,9 @@ public class DbAdapter {
 		mDbHelper.close();
 	}
 	
-	public long writeAcceleration(float[] values){
+	public long writeAcceleration(long timestamp, float[] values){
 		ContentValues accToPut = new ContentValues();
-		accToPut.put(ACCEL_KEY_TIME, System.currentTimeMillis());
+		accToPut.put(ACCEL_KEY_TIME, timestamp);
 		accToPut.put(ACCEL_KEY_X, values[0]);
 		accToPut.put(ACCEL_KEY_Y, values[1]);
 		accToPut.put(ACCEL_KEY_Z, values[2]);
@@ -276,10 +301,13 @@ public class DbAdapter {
     
     public long deletePicture(long id){
     	Cursor c = fetchPicture(id);
-    	String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
+    	if (c.getCount() > 0){
+	    	String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
+	    	new File(picFileName).delete();
+    	}
         c.close();
         
-        mCtx.deleteFile(picFileName);
+       
         
         return mDb.delete(PIX_TABLE, PIX_KEY_ID + "=" + id, null);
     }
@@ -314,9 +342,16 @@ public class DbAdapter {
 	public long writePicture(byte[] picture) throws IOException {
 		ContentValues picToPut = new ContentValues();
 		long currentTime = System.currentTimeMillis();
-		String picFileName = "pic_" + currentTime + ".jpg";
+		String picFileName = Environment.getExternalStorageDirectory().getAbsolutePath() + "/pic_" + currentTime + ".jpg";
 		
-		FileOutputStream fos = mCtx.openFileOutput(picFileName, Context.MODE_PRIVATE);
+		FileOutputStream fos;
+		try{
+			fos = new FileOutputStream(picFileName);
+		}
+		catch (IOException e){
+			picFileName = mCtx.getFilesDir().getAbsolutePath() + "/pic_" + currentTime + ".jpg";
+			fos = new FileOutputStream(picFileName);
+		}
 		fos.write(picture);
 		fos.close();
 		
@@ -329,32 +364,45 @@ public class DbAdapter {
 		}
 		return result;
 	}
-	public Cursor fetchAllQueries()
-	{
-		return mDb.query(STACK_TABLE, new String[]{STACK_KEY_ID,STACK_KEY_CHANNEL,STACK_KEY_DATA},null, null,null,null, STACK_KEY_ID);
+	
+	public long writeWifi(long timeFound, String ssid, String bssid){
+		ContentValues wifiToPut = new ContentValues();
+		wifiToPut.put(WIFI_KEY_TIME, timeFound);
+		wifiToPut.put(WIFI_KEY_SSID, ssid);
+		wifiToPut.put(WIFI_KEY_BSSID, bssid);
+		
+		return mDb.insert(WIFI_TABLE, null, wifiToPut);
 	}
-	//TODO: Need to parse the string correctly for the database (group timestamp, X,Y,Z)
-	public long writeQuery(String channelName, ArrayList<String> values)
-	{
-		String data = "";
-		for(int i=0; i < values.size(); i++)
-		{
-			if((i+1) == values.size())
-			{
-				data = data + values.get(i);
-			}
-			else
-			{
-				data = data + values.get(i) + ",";
-			}
-		}
-		ContentValues queryToPut = new ContentValues();
-		queryToPut.put(STACK_KEY_CHANNEL, channelName);
-		queryToPut.put(STACK_KEY_DATA, data);
-		return mDb.insert(STACK_TABLE,null, queryToPut);
+	
+	public long deleteWifi(long id){
+		return mDb.delete(WIFI_TABLE, WIFI_KEY_ID + "=" + id, null);
 	}
-
-	public int delete(int stackId) {
-		return mDb.delete(STACK_TABLE, "_id=" + stackId,null);
+	
+	public Cursor fetchAllWifis(){
+		return fetchWifis(null);
+	}
+	
+	public Cursor fetchWifis(long limit){
+		return fetchWifis("" + limit);
+	}
+	
+	private Cursor fetchWifis(String limit){
+		return mDb.query(WIFI_TABLE, new String[] {WIFI_KEY_ID, WIFI_KEY_TIME, WIFI_KEY_SSID,
+				WIFI_KEY_BSSID},
+                null, null, null, null, WIFI_KEY_TIME, limit);
+	}
+	
+	public long writeGyro(long timestamp, float[] values){
+		ContentValues gyroToPut = new ContentValues();
+		gyroToPut.put(GYRO_KEY_TIME, timestamp);
+		gyroToPut.put(GYRO_KEY_X, values[0]);
+		gyroToPut.put(GYRO_KEY_Y, values[1]);
+		gyroToPut.put(GYRO_KEY_Z, values[2]);
+		
+		return mDb.insert(GYRO_TABLE, null, gyroToPut);
+	}
+	
+	public long deleteGyro(long id){
+		return mDb.delete(GYRO_TABLE, GYRO_KEY_ID + "=" + id, null);
 	}
 }

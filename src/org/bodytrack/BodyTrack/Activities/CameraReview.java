@@ -1,6 +1,7 @@
 package org.bodytrack.BodyTrack.Activities;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -22,6 +23,7 @@ import org.bodytrack.BodyTrack.R;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -29,10 +31,13 @@ import android.content.res.TypedArray;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.view.ContextMenu;
 import android.view.KeyEvent;
 import android.view.MenuItem;
@@ -53,6 +58,8 @@ import android.widget.Toast;
  */
 public class CameraReview extends Activity {
 	public static final String TAG = "cameraReview";
+	
+	private static final String temporaryStorage = "temppic.jpg";
 	
 	private Button takePic, uploadPics, deletePics;
 	
@@ -76,6 +83,8 @@ public class CameraReview extends Activity {
 	private PreferencesAdapter prefAdapter;
 	
 	private long currentContextMenuId = -1;
+	
+	private Uri imageUri;
 	
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -115,8 +124,18 @@ public class CameraReview extends Activity {
 	
 	private Button.OnClickListener mTakePic = new Button.OnClickListener(){
 		public void onClick(View v) {
-			Intent intent = new Intent(getApplicationContext(), CameraActivity.class);
-			startActivityForResult(intent, ACTIVITY_NEW_PICTURE);
+			try{
+				Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+				ContentValues values = new ContentValues();
+				values.put(MediaStore.Images.Media.TITLE, temporaryStorage);
+				values.put(MediaStore.Images.Media.DESCRIPTION, "Image taken by BodyTrack");
+				imageUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+				cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+				startActivityForResult(cameraIntent, ACTIVITY_NEW_PICTURE);
+			}
+			catch (Exception e){
+				Toast.makeText(CameraReview.this, "Please insert an SD card before using the camera.", Toast.LENGTH_SHORT).show();
+			}
 		}
 	};
 	
@@ -233,18 +252,63 @@ public class CameraReview extends Activity {
         switch(requestCode) {
 	        case ACTIVITY_NEW_PICTURE:
 	        	if (resultCode == RESULT_OK){
-	        		refreshGallery();
-	        		if (prefAdapter.autoUploadPhotosEnabled()){
-	        			Cursor c = dbAdapter.fetchLastPicture();
-	        			long id = c.getLong(c.getColumnIndex(DbAdapter.LOC_KEY_ID));
-	        			c.close();
-	        			uploadPhotos(id);
-	        		}
+	        		try {
+	        			File tempFile = convertImageUriToFile(imageUri,this);
+						FileInputStream fis = new FileInputStream(tempFile);
+						ByteArrayOutputStream bos = new ByteArrayOutputStream();
+						byte[] buffer = new byte[1024];
+						int read;
+						do{
+							read = fis.read(buffer);
+							if (read > 0){
+								bos.write(buffer,0,read);
+							}
+						} while(read >= 0);
+						fis.close();
+						tempFile.delete();
+						dbAdapter.writePicture(bos.toByteArray());
+						refreshGallery();
+		        		if (prefAdapter.autoUploadPhotosEnabled()){
+		        			Cursor c = dbAdapter.fetchLastPicture();
+		        			long id = c.getLong(c.getColumnIndex(DbAdapter.LOC_KEY_ID));
+		        			c.close();
+		        			uploadPhotos(id);
+		        		}
+					} catch (Exception e){
+						
+					}
+	        		
+	        		
 	        	}
 	            break;
         }
         
     }
+	
+	public static File convertImageUriToFile (Uri imageUri, Activity activity)  {
+		Cursor cursor = null;
+		try {
+		    String [] proj={MediaStore.Images.Media.DATA, MediaStore.Images.Media._ID, MediaStore.Images.ImageColumns.ORIENTATION};
+		    cursor = activity.managedQuery( imageUri,
+		            proj, // Which columns to return
+		            null,       // WHERE clause; which rows to return (all rows)
+		            null,       // WHERE clause selection arguments (none)
+		            null); // Order-by clause (ascending by name)
+		    int file_ColumnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+		    int orientation_ColumnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.ORIENTATION);
+		    if (cursor.moveToFirst()) {
+		        String orientation =  cursor.getString(orientation_ColumnIndex);
+		        return new File(cursor.getString(file_ColumnIndex));
+		    }
+		    return null;
+		} catch (Exception e){
+			return null;
+		} finally {
+		    if (cursor != null) {
+		        cursor.close();
+		    }
+		}
+		}
 	
 	protected void onResume(){
 		super.onResume();
@@ -318,7 +382,7 @@ public class CameraReview extends Activity {
 		        String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
 		        c.close();
 		        
-		        FileInputStream fis = openFileInput(picFileName);
+		        FileInputStream fis = new FileInputStream(picFileName);
 		        
 		        BitmapFactory.Options opts = new BitmapFactory.Options();
 		        
@@ -367,10 +431,13 @@ public class CameraReview extends Activity {
 
 	    public long getItemId(int position) {
 	    	Cursor c = dbAdapter.fetchAllPics();
-	    	c.moveToFirst();
-	    	for (int i = 0; i < position; i++)
-	    		c.moveToNext();
-	    	long id = c.getLong(c.getColumnIndex(DbAdapter.PIX_KEY_ID));
+	    	long id = 0;
+		    if (c.getCount() > position){
+		    	c.moveToFirst();
+		    	for (int i = 0; i < position; i++)
+		    		c.moveToNext();
+		    	id = c.getLong(c.getColumnIndex(DbAdapter.PIX_KEY_ID));
+		    }
 	    	c.close();
 	        return id;
 	    }
@@ -416,7 +483,7 @@ public class CameraReview extends Activity {
 					String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
 				    c.close();
 				    
-				    FileInputStream fis = openFileInput(picFileName);
+				    FileInputStream fis = new FileInputStream(picFileName);
 				    ByteArrayOutputStream bos = new ByteArrayOutputStream();
 				    
 				    byte[] buffer = new byte[1024];
@@ -444,7 +511,13 @@ public class CameraReview extends Activity {
 					if (status.getStatusCode() >= 200 && status.getStatusCode() < 300){
 						dbAdapter.setPictureUploadState(ids[i],DbAdapter.PIC_UPLOADED);
 						numUploaded++;
-						onImageUploaded(ids[i]);
+						final long id = ids[i];
+						runOnUiThread(new Runnable(){
+							public void run(){
+								onImageUploaded(id);
+							}
+						});
+						
 					}
 				} catch (Exception e) {
 					e.printStackTrace();

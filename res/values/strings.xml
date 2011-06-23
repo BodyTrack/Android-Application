@@ -16,8 +16,8 @@
     <string name="dumpData">Send data to web</string>    
    
    <!--  GPS Service values -->
-   <string name="svcRunning">BodyTrack GPS tracker running</string>
-   <string name="svcTitle">BodyTrack GPS Service</string>
+   <string name="svcRunning">BodyTrack is logging data.</string>
+   <string name="svcTitle">BodyTrack Service</string>
    
    <!--  Acceleerometer Service values -->
    <string name="accSvcRunning">BodyTrack Accelerometer tracker running</string>
@@ -81,4 +81,6 @@
   	<string name="sumary_upload_photos_bg">"Don't freeze up the UI while photos are being uploaded"</string>
   	<string name="title_device_nickname">Nickname</string>
   	<string name="sumary_device_nickname">Nickname that will be associated with data from this phone.</string>
+  	<string name="startGyro">Start Gyroscope Tracking</string><string name="stopGyro">Stop Gyroscope Tracking</string>
+  	<string name="startWifi">Start Wifi Tracking</string><string name="stopWifi">Stop Wifi Tracking</string>
 </resources>
