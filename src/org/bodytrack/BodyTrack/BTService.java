@@ -14,7 +14,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-import org.bodytrack.BodyTrack.Activities.BodyTrackExceptionHandler;
+import org.bodytrack.BodyTrack.Activities.CameraReview;
 import org.bodytrack.BodyTrack.Activities.HomeTabbed;
 import org.json.JSONObject;
 
@@ -26,6 +26,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.Cursor;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -34,6 +35,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -52,7 +54,7 @@ public class BTService extends Service{
 	public static final String TAG = "BTService";
 	
 	
-	private final long minTime = 0;
+	private final long minTime = 1000 * 60 * 5;
 	private final long minDistance = 0;
 	
 	
@@ -76,28 +78,36 @@ public class BTService extends Service{
 	private Object[] mStopForegroundArgs = new Object[1];
 	private static final int NOTIFICATION = 5;
 	
-	public static final int NUM_LOGGERS = 5;
+	public static final int NUM_LOGGERS = 7;
 	
 	public static final int GPS_LOGGING = 0;
 	public static final int ACC_LOGGING = 1;
 	public static final int GYRO_LOGGING = 2;
 	public static final int WIFI_LOGGING = 3;
-	public static final int MAG_LOGGING = 4;
+	public static final int TEMP_LOGGING = 4;
+	public static final int ORNT_LOGGING = 5;
+	public static final int LIGHT_LOGGING = 6;
 	
-	private List<Object[]> dataList = new LinkedList<Object[]>();
+	private List<List<Object[]>> dataLists = new ArrayList<List<Object[]>>();
+	
+	private PreferencesAdapter prefAdapter;
 
 		
 	@Override
 	public void onCreate() {
 		super.onCreate();
     	Log.v(TAG, "Starting GPS service");
+    	
+    	for (int i = 0; i < NUM_LOGGERS; i++){
+    		dataLists.add(new LinkedList<Object[]>());
+    	}
 				
 		/*Get an instance of the location manager*/
 		locMan = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		senseMan = (SensorManager) getSystemService(SENSOR_SERVICE);
 		wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 		
-		dbAdapter = new DbAdapter(this).open();
+		dbAdapter = DbAdapter.getDbAdapter(getApplicationContext());
 		
 		
 	    notMan = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
@@ -111,8 +121,12 @@ public class BTService extends Service{
 	        mStartForeground = mStopForeground = null;
 	    }
 	    
+	    prefAdapter = new PreferencesAdapter(this);
+	    
 	    dbUpdaterTask = new DbDataWriter();
 	    dbUpdaterTask.execute();
+	    
+	    new UploaderTask().execute();
 	}
 	
 	/**
@@ -182,6 +196,21 @@ public class BTService extends Service{
 					curWifiScanner.execute();
 				}
 				break;
+			case ORNT_LOGGING:
+				if (!isLogging[id]){
+					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ORIENTATION), SensorManager.SENSOR_DELAY_GAME);
+				}
+				break;
+			case LIGHT_LOGGING:
+				if (!isLogging[id]){
+					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_LIGHT), SensorManager.SENSOR_DELAY_GAME);
+				}
+				break;
+			case TEMP_LOGGING:
+				if (!isLogging[id]){
+					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_TEMPERATURE), SensorManager.SENSOR_DELAY_GAME);
+				}
+				break;
 			default:
 				return;
 		}
@@ -218,10 +247,21 @@ public class BTService extends Service{
 					curWifiScanner = null;
 				}
 				break;
-			case MAG_LOGGING:
+			case ORNT_LOGGING:
 				if (isLogging[id]){
-					senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD));
+					senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ORIENTATION));
 				}
+				break;
+			case LIGHT_LOGGING:
+				if (isLogging[id]){
+					senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_LIGHT));
+				}
+				break;
+			case TEMP_LOGGING:
+				if (isLogging[id]){
+					senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_TEMPERATURE));
+				}
+				break;
 			default:
 				return;
 		}
@@ -242,8 +282,12 @@ public class BTService extends Service{
 				return senseMan.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null;
 			case WIFI_LOGGING:
 				return wifiManager.isWifiEnabled();
-			case MAG_LOGGING:
-				return senseMan.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD) != null;
+			case ORNT_LOGGING:
+				return senseMan.getDefaultSensor(Sensor.TYPE_ORIENTATION) != null;
+			case LIGHT_LOGGING:
+				return senseMan.getDefaultSensor(Sensor.TYPE_LIGHT) != null;
+			case TEMP_LOGGING:
+				return senseMan.getDefaultSensor(Sensor.TYPE_TEMPERATURE) != null;
 			default:
 		}
 		return false;
@@ -321,39 +365,58 @@ public class BTService extends Service{
 	}
 	
 	private void queueLocation(Location loc){
-		Object[] data = new Object[2];
-		data[0] = GPS_LOGGING;
-		data[1] = loc;
-		dataList.add(data);
+		Object[] data = new Object[1];
+		data[0] = loc;
+		dataLists.get(GPS_LOGGING).add(data);
 	}
 	
 	private void queueAcceleration(long timestamp, float[] values){
-		Object[] data = new Object[5];
-		data[0] = ACC_LOGGING;
-		data[1] = timestamp;
+		Object[] data = new Object[4];
+		data[0] = timestamp;
 		for (int i = 0; i < 3; i++){
-			data[2+i] = values[i];
+			data[1+i] = values[i];
 		}
-		dataList.add(data);
+		dataLists.get(ACC_LOGGING).add(data);
 	}
 	
 	private void queueGyroscope(long timestamp, float[] values){
-		Object[] data = new Object[5];
-		data[0] = GYRO_LOGGING;
-		data[1] = timestamp;
+		Object[] data = new Object[4];
+		data[0] = timestamp;
 		for (int i = 0; i < 3; i++){
-			data[2+i] = values[i];
+			data[1+i] = values[i];
 		}
-		dataList.add(data);
+		dataLists.get(GYRO_LOGGING).add(data);
 	}
 	
 	private void queueWifi(long timestamp, String ssid, String bssid){
+		Object[] data = new Object[3];
+		data[0] = timestamp;
+		data[1] = ssid;
+		data[2] = bssid;
+		dataLists.get(WIFI_LOGGING).add(data);
+	}
+	
+	private void queueLight(long timestamp, float lux){
+		Object[] data = new Object[2];
+		data[0] = timestamp;
+		data[1] = lux;
+		dataLists.get(LIGHT_LOGGING).add(data);
+	}
+	
+	private void queueTemp(long timestamp, float temp){
+		Object[] data = new Object[2];
+		data[0] = timestamp;
+		data[1] = temp;
+		dataLists.get(TEMP_LOGGING).add(data);
+	}
+	
+	private void queueOrientation(long timestamp, float[] values){
 		Object[] data = new Object[4];
-		data[0] = WIFI_LOGGING;
-		data[1] = timestamp;
-		data[2] = ssid;
-		data[3] = bssid;
-		dataList.add(data);
+		data[0] = timestamp;
+		for (int i = 0; i < 3; i++){
+			data[1+i] = values[i];
+		}
+		dataLists.get(ORNT_LOGGING).add(data);
 	}
 
 
@@ -400,12 +463,27 @@ public class BTService extends Service{
 			switch (event.sensor.getType()){
 				case Sensor.TYPE_ACCELEROMETER:
 					if (isLogging[ACC_LOGGING]){
-						queueAcceleration(event.timestamp,event.values);
+						queueAcceleration(System.currentTimeMillis(),event.values);
 					}
 					break;
 				case Sensor.TYPE_GYROSCOPE:
 					if (isLogging[GYRO_LOGGING]){
-						queueGyroscope(event.timestamp,event.values);
+						queueGyroscope(System.currentTimeMillis(),event.values);
+					}
+					break;
+				case Sensor.TYPE_LIGHT:
+					if (isLogging[LIGHT_LOGGING]){
+						queueLight(System.currentTimeMillis(),event.values[0]);
+					}
+					break;
+				case Sensor.TYPE_TEMPERATURE:
+					if (isLogging[TEMP_LOGGING]){
+						queueTemp(System.currentTimeMillis(),event.values[0]);
+					}
+					break;
+				case Sensor.TYPE_ORIENTATION:
+					if (isLogging[ORNT_LOGGING]){
+						queueOrientation(System.currentTimeMillis(),event.values);
 					}
 					break;
 				default:
@@ -454,47 +532,37 @@ public class BTService extends Service{
 			Thread.setDefaultUncaughtExceptionHandler(new BodyTrackExceptionHandler());
 			
 			while (true){
-				while (dataList.size() > 0){
-					Object[] data = dataList.remove(0);
-					switch ((Integer) data[0]){
+				for (int i = 0; i < NUM_LOGGERS; i++){
+					//grab list and insert empty one
+					List<Object[]> currentList = dataLists.get(i);
+					dataLists.set(i, new LinkedList<Object[]>());
+					//write data to database
+					switch (i){
 						case GPS_LOGGING:
-							dbAdapter.writeLocation((Location) data[1]);
+							dbAdapter.writeLocations(currentList);
 							break;
 						case ACC_LOGGING:
-						{
-							float[] values = new float[3];
-							long time = (Long) data[1];
-							for (int i = 0; i < 3; i++){
-								values[i] = (Float) data[i + 2];
-							}
-							dbAdapter.writeAcceleration(time, values);
+							dbAdapter.writeAccelerations(currentList);
 							break;
-						}
 						case GYRO_LOGGING:
-						{
-							float[] values = new float[3];
-							long time = (Long) data[1];
-							for (int i = 0; i < 3; i++){
-								values[i] = (Float) data[i + 2];
-							}
-							dbAdapter.writeGyro(time, values);
+							dbAdapter.writeGyros(currentList);
 							break;
-						}
 						case WIFI_LOGGING:
-						{
-							long retVal = dbAdapter.writeWifi((Long) data[1], (String) data[2], (String) data[3]);
-							if (retVal < 0){
-								retVal++;
-							}
+							dbAdapter.writeWifis(currentList);
 							break;
-						}
-						case MAG_LOGGING:
+						case ORNT_LOGGING:
+							dbAdapter.writeOrientations(currentList);
+							break;
+						case LIGHT_LOGGING:
+							dbAdapter.writeLights(currentList);
+							break;
+						case TEMP_LOGGING:
+							dbAdapter.writeTemps(currentList);
 							break;
 					}
-				}
-				
+				}				
 				try {
-					Thread.sleep(1000);
+					Thread.sleep(5000);
 				} catch (InterruptedException e) {
 				}
 			}
@@ -522,5 +590,68 @@ public class BTService extends Service{
 			return BTService.this.canLog(id);
 		}
 	};
+	
+	private class UploaderTask extends AsyncTask<Void, Void, Void> {
+		//TODO: clean this up!
+	     protected Void doInBackground(Void... params) {	
+	    	 Thread.setDefaultUncaughtExceptionHandler(new BodyTrackExceptionHandler());
+	    	//upload gps data
+	    	 
+	    	
+	    	WifiInfo address = wifiManager.getConnectionInfo();
+			
+			while (true){
+				
+				//upload gps data
+				if (prefAdapter.isNetworkEnabled())
+					dbAdapter.uploadLocations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+	    	 
+	 			
+	 			//upload accelerometer data
+				if (prefAdapter.isNetworkEnabled())
+					dbAdapter.uploadAccelerations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+				
+				//upload gyroscope data
+				if (prefAdapter.isNetworkEnabled())
+					dbAdapter.uploadGyros(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+				
+				//upload orientation data
+				if (prefAdapter.isNetworkEnabled())
+					dbAdapter.uploadOrientations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+				
+				//upload light data
+				if (prefAdapter.isNetworkEnabled())
+					dbAdapter.uploadIlluminances(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+				
+				//upload temperature data
+				if (prefAdapter.isNetworkEnabled())
+					dbAdapter.uploadTemperatures(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+	 			
+	 			//upload wifi accesspoint data
+				if (prefAdapter.isNetworkEnabled())
+					dbAdapter.uploadWifis(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+				
+	 			//upload 1 picture
+				if (prefAdapter.isNetworkEnabled()){
+		 			Cursor c = dbAdapter.fetchFirstPendingUploadPic();
+					if (c.moveToFirst()){
+						long id = c.getLong(c.getColumnIndex(DbAdapter.PIX_KEY_ID));
+						c.close();
+						dbAdapter.uploadPhoto(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName(), CameraReview.activeInstance, id);
+					}
+					else {
+						c.close();
+					}
+				}
+				//sleep
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+	     }
+	 }
 		
 }

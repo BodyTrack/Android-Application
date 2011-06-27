@@ -94,7 +94,7 @@ public class CameraReview extends Activity {
 		
 		prefAdapter = new PreferencesAdapter(this);
 		
-		dbAdapter = new DbAdapter(this).open();
+		dbAdapter = DbAdapter.getDbAdapter(getApplicationContext());
 		
 		//Set up button to go to camera activity
 		takePic = (Button)findViewById(R.id.takePic);
@@ -270,7 +270,7 @@ public class CameraReview extends Activity {
 						refreshGallery();
 		        		if (prefAdapter.autoUploadPhotosEnabled()){
 		        			Cursor c = dbAdapter.fetchLastPicture();
-		        			long id = c.getLong(c.getColumnIndex(DbAdapter.LOC_KEY_ID));
+		        			long id = c.getLong(c.getColumnIndex(DbAdapter.PIX_KEY_ID));
 		        			c.close();
 		        			uploadPhotos(id);
 		        		}
@@ -477,51 +477,10 @@ public class CameraReview extends Activity {
 			WifiInfo address = wifiManager.getConnectionInfo();
 			for (int i = 0; i < totalToUpload; i++) {
 				publishProgress(i);
-				try {
-					
-					Cursor c = dbAdapter.fetchPicture(ids[i]);
-					String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
-				    c.close();
-				    
-				    FileInputStream fis = new FileInputStream(picFileName);
-				    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-				    
-				    byte[] buffer = new byte[1024];
-				    int read = 0;
-				    
-				    while (read >= 0){
-				    	read = fis.read(buffer);
-				    	if (read > 0){
-				    		bos.write(buffer,0,read);
-				    	}
-				    }
-				    
-				    fis.close();
-				    
-				    
-					ByteArrayBody bin = new ByteArrayBody(bos.toByteArray(), "image/jpeg", picFileName);
-					MultipartEntity reqEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
-					reqEntity.addPart("device_id",new StringBody(address.getMacAddress()));
-					reqEntity.addPart("device_class",new StringBody(android.os.Build.MODEL));
-					reqEntity.addPart("dev_nickname",new StringBody(prefAdapter.getNickName()));
-					reqEntity.addPart("photo",bin);
-					postToServer.setEntity(reqEntity);
-					HttpResponse response = mHttpClient.execute(postToServer);
-					StatusLine status = response.getStatusLine();
-					if (status.getStatusCode() >= 200 && status.getStatusCode() < 300){
-						dbAdapter.setPictureUploadState(ids[i],DbAdapter.PIC_UPLOADED);
-						numUploaded++;
-						final long id = ids[i];
-						runOnUiThread(new Runnable(){
-							public void run(){
-								onImageUploaded(id);
-							}
-						});
-						
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
+				if (dbAdapter.uploadPhoto(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName(), CameraReview.this, ids[i])){
+					numUploaded++;
 				}
+				
 			}
 	         return 0L;
 	     }

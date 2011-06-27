@@ -1,10 +1,33 @@
 package org.bodytrack.BodyTrack;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.StatusLine;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntity;
+import org.apache.http.entity.mime.content.ByteArrayBody;
+import org.apache.http.entity.mime.content.StringBody;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
+import org.bodytrack.BodyTrack.Activities.CameraReview;
+import org.bodytrack.BodyTrack.Activities.HomeTabbed;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -13,6 +36,7 @@ import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.location.Location;
+import android.net.wifi.WifiInfo;
 import android.os.Environment;
 import android.util.Log;
 
@@ -32,26 +56,6 @@ public class DbAdapter {
 	public static final int PIC_NOT_UPLOADED = 0;
 	public static final int PIC_PENDING_UPLOAD = 1;
 	public static final int PIC_UPLOADED = 2;
-	
-	
-	//Location table creation SQL
-	
-    private static final String LOCATION_TABLE_CREATE =
-        "create table location (_id integer primary key autoincrement, "
-                + "latitude real not null, longitude real not null, time real not null,"
-                + "accuracy real, altitude real, bearing real, provider text,"
-                + "speed real);";
-	//fields of location table    
-	public static final String LOCATION_TABLE = "location";
-	public static final String LOC_KEY_ID = "_id";
-	public static final String LOC_KEY_TIME = "time";
-	public static final String LOC_KEY_LATITUDE = "latitude";
-	public static final String LOC_KEY_LONGITUDE = "longitude";
-	public static final String LOC_KEY_ACCURACY = "accuracy";
-	public static final String LOC_KEY_ALTITUDE = "altitude";
-	public static final String LOC_KEY_BEARING = "bearing";
-	public static final String LOC_KEY_PROVIDER = "provider";
-	public static final String LOC_KEY_SPEED = "speed";
 
 
     //Barcode table creation SQL
@@ -74,58 +78,68 @@ public class DbAdapter {
 	public static final String	PIX_KEY_TIME = "time";
 	public static final String PIX_KEY_PIC = "pic";
 	public static final String PIX_KEY_UPLOAD_STATE = "uploadstate";
-	
-
-	//Accelerometer table creation
-	   private static final String ACCEL_TABLE_CREATE =
-	        "create table accel (_id integer primary key autoincrement, "
-	                + "time integer not null, xvalue real not null, yvalue real not null, " +
-	                		"zvalue real not null);";
-	//fields of Accelerometer
-	   public static final String ACCEL_TABLE = "accel";
-	   public static final String ACCEL_KEY_ID = "_id";
-	   public static final String ACCEL_KEY_TIME = "time";
-	   public static final String ACCEL_KEY_X = "xvalue";
-	   public static final String ACCEL_KEY_Y = "yvalue";
-	   public static final String ACCEL_KEY_Z = "zvalue";
-	   
-	 //fields of wifi
-	   public static final String WIFI_TABLE = "wifi";
-	   public static final String WIFI_KEY_ID = "_id";
-	   public static final String WIFI_KEY_TIME = "time";
-	   public static final String WIFI_KEY_SSID = "ssid";
-	   public static final String WIFI_KEY_BSSID = "bssid";
-	   
-	 //wifi table creation
-	   private static final String WIFI_TABLE_CREATE = "create table " + WIFI_TABLE + " (" +
-	   			WIFI_KEY_ID + " integer primary key autoincrement, " +
-	   			WIFI_KEY_TIME + " integer not null, " +
-	   			WIFI_KEY_SSID + " string not null," +
-	   			WIFI_KEY_BSSID + " string nto null);";
 	   
 	   
-	 //fields of gyroscope
-	   public static final String GYRO_TABLE = "gyro";
-	   public static final String GYRO_KEY_ID = "_id";
-	   public static final String GYRO_KEY_TIME = "time";
-	   public static final String GYRO_KEY_X = "xvalue";
-	   public static final String GYRO_KEY_Y = "yvalue";
-	   public static final String GYRO_KEY_Z = "zvalue";
+	 //generic key names
+	   public static final String KEY_ID = "_id";
+	   public static final String KEY_DATA = "data";
 	   
-	 //gyroscope table creation
-	   private static final String GYRO_TABLE_CREATE = "create table " + GYRO_TABLE + " (" +
-	   				GYRO_KEY_ID + " integer primary key autoincrement, " +
-	   				GYRO_KEY_TIME + " integer not null, " +
-	   				GYRO_KEY_X + " real not null," +
-	   				GYRO_KEY_Y + " real not null," +
-	   				GYRO_KEY_Z + " real not null);";
-    
+	 //new location table
+	   public static final String NEW_LOC_TABLE = "newlocs";
+	   
+	   private static final String NEW_LOC_TABLE_CREATE = "create table " + NEW_LOC_TABLE + " (" +
+	   					KEY_ID + " integer primary key autoincrement, " +
+	   					KEY_DATA + " String not null);";
+	   
+	 //new acceleration table
+	   public static final String NEW_ACC_TABLE = "newacc";
+	   
+	   
+	   private static final String NEW_ACC_TABLE_CREATE = "create table " + NEW_ACC_TABLE + " (" +
+			KEY_ID + " integer primary key autoincrement, " +
+				KEY_DATA + " String not null);";
+	   
+	 //new gyroscope table
+	   public static final String NEW_GYRO_TABLE = "newgyro";
+	   
+	   private static final String NEW_GYRO_TABLE_CREATE = "create table " + NEW_GYRO_TABLE + " (" +
+					   KEY_ID + " integer primary key autoincrement, " +
+						KEY_DATA + " String not null);";
+	   
+	 //new wifi table
+	   public static final String NEW_WIFI_TABLE = "newwifi";
+	   
+	   private static final String NEW_WIFI_TABLE_CREATE = "create table " + NEW_WIFI_TABLE + " (" +
+	   KEY_ID + " integer primary key autoincrement, " +
+		KEY_DATA + " String not null);";
+	   
+	 //new light table
+	   public static final String NEW_LIGHT_TABLE = "newlight";
+	   
+	   private static final String NEW_LIGHT_TABLE_CREATE = "create table " + NEW_LIGHT_TABLE + " (" +
+	   KEY_ID + " integer primary key autoincrement, " +
+		KEY_DATA + " String not null);";
+	   
+	 //new temp table
+	   public static final String NEW_TEMP_TABLE = "newtemp";
+	   
+	   private static final String NEW_TEMP_TABLE_CREATE = "create table " + NEW_TEMP_TABLE + " (" +
+	   KEY_ID + " integer primary key autoincrement, " +
+		KEY_DATA + " String not null);";
+	   
+	 //new orientation table
+	   public static final String NEW_ORNT_TABLE = "newornt";
+	   
+	   private static final String NEW_ORNT_TABLE_CREATE = "create table " + NEW_ORNT_TABLE + " (" +
+	   KEY_ID + " integer primary key autoincrement, " +
+		KEY_DATA + " String not null);";
+	   
     private DatabaseHelper mDbHelper;
     private Context mCtx;
     private SQLiteDatabase mDb;
 	
 	private static class DatabaseHelper extends SQLiteOpenHelper {
-
+		
 		public DatabaseHelper(Context context) {
 			super(context, DbAdapter.DB_NAME, null, DbAdapter.DB_VERSION);
 		}
@@ -134,12 +148,16 @@ public class DbAdapter {
 		public void onCreate(SQLiteDatabase db) {
 			//create the 3 database tables
 			
-			db.execSQL(LOCATION_TABLE_CREATE);
 			db.execSQL(BARCODE_TABLE_CREATE);
 			db.execSQL(PIX_TABLE_CREATE);
-			db.execSQL(ACCEL_TABLE_CREATE);
-			db.execSQL(WIFI_TABLE_CREATE);
-			db.execSQL(GYRO_TABLE_CREATE);
+			
+			db.execSQL(NEW_LOC_TABLE_CREATE);
+			db.execSQL(NEW_ACC_TABLE_CREATE);
+			db.execSQL(NEW_GYRO_TABLE_CREATE);
+			db.execSQL(NEW_WIFI_TABLE_CREATE);
+			db.execSQL(NEW_LIGHT_TABLE_CREATE);
+			db.execSQL(NEW_TEMP_TABLE_CREATE);
+			db.execSQL(NEW_ORNT_TABLE_CREATE);
 		}
 
 		@Override
@@ -148,13 +166,22 @@ public class DbAdapter {
 		}	
 	}
 	
-	public DbAdapter(Context ctx) {
+	private static DbAdapter instance = null;
+	
+	public static DbAdapter getDbAdapter(Context context){
+		if (instance == null)
+			instance = new DbAdapter(context).open();
+		return instance;
+	}
+	
+	private DbAdapter(Context ctx) {
 		this.mCtx = ctx;
 	}
 	
 	public DbAdapter open() throws SQLException{
 		mDbHelper = new DatabaseHelper(mCtx);
 		mDb = mDbHelper.getWritableDatabase();
+		mDb.setLockingEnabled(true);
 		return this;
 	}
 	
@@ -162,84 +189,156 @@ public class DbAdapter {
 		mDbHelper.close();
 	}
 	
-	public long writeAcceleration(long timestamp, float[] values){
-		ContentValues accToPut = new ContentValues();
-		accToPut.put(ACCEL_KEY_TIME, timestamp);
-		accToPut.put(ACCEL_KEY_X, values[0]);
-		accToPut.put(ACCEL_KEY_Y, values[1]);
-		accToPut.put(ACCEL_KEY_Z, values[2]);
-		return mDb.insert(ACCEL_TABLE, null, accToPut);
-	}
-	
-	public Cursor fetchAllAccelerations(){
-		return fetchAccelerations(null);
-	}
-	
-	public Cursor fetchAccelerations(long limit){
-		return fetchAccelerations("" + limit);
-	}
-	
-	private Cursor fetchAccelerations(String limit){
-		return mDb.query(ACCEL_TABLE, new String[] {ACCEL_KEY_ID,ACCEL_KEY_TIME,ACCEL_KEY_X,
-				ACCEL_KEY_Y, ACCEL_KEY_Z},
-                null, null, null, null, ACCEL_KEY_TIME, limit);
-	}
-	
-	public long writeLocation(Location loc)
-	{
+	public long writeLocations(List<Object[]> data){
+		if (data.size() == 0)
+			return 0;
+		JSONArray dataArray = new JSONArray();
+		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
+			Object[] curDat = iter.next();
+			Location loc = (Location) curDat[0];
+			JSONArray locData = new JSONArray();
+			try{
+				locData.put(loc.getTime() / 1000.0);
+				locData.put(loc.getLatitude());
+				locData.put(loc.getLongitude());
+				locData.put(loc.getAltitude());
+				locData.put(loc.getAccuracy());
+				locData.put(loc.getSpeed());
+				locData.put(loc.getBearing());
+				locData.put(loc.getProvider());
+				dataArray.put(locData);
+			}
+			catch (Exception e){
+			}
+		}
 		ContentValues locToPut = new ContentValues();
-		locToPut.put(LOC_KEY_TIME, loc.getTime());
-		locToPut.put(LOC_KEY_LATITUDE, loc.getLatitude());
-		locToPut.put(LOC_KEY_LONGITUDE, loc.getLongitude());
-		locToPut.put(LOC_KEY_ACCURACY, loc.getAccuracy());
-		locToPut.put(LOC_KEY_ALTITUDE, loc.getAltitude());
-		locToPut.put(LOC_KEY_BEARING, loc.getBearing());
-		locToPut.put(LOC_KEY_PROVIDER, loc.getProvider());
-		locToPut.put(LOC_KEY_SPEED, loc.getSpeed());
-		
-		return mDb.insert(LOCATION_TABLE, null, locToPut);
+		locToPut.put(KEY_DATA, dataArray.toString());
+		return mDb.insert(NEW_LOC_TABLE, null, locToPut);
 	}
 	
-	public Location getLocationData(Cursor c){
-		Location loc = new Location(c.getString(c.getColumnIndex(LOC_KEY_PROVIDER)));
-		loc.setAccuracy(c.getFloat(c.getColumnIndex(LOC_KEY_ACCURACY)));
-		loc.setAltitude(c.getDouble(c.getColumnIndex(LOC_KEY_ALTITUDE)));
-		loc.setBearing(c.getFloat(c.getColumnIndex(LOC_KEY_BEARING)));
-		loc.setLatitude(c.getDouble(c.getColumnIndex(LOC_KEY_LATITUDE)));
-		loc.setLongitude(c.getDouble(c.getColumnIndex(LOC_KEY_LONGITUDE)));
-		loc.setSpeed(c.getFloat(c.getColumnIndex(LOC_KEY_SPEED)));
-		loc.setTime(c.getLong(c.getColumnIndex(LOC_KEY_TIME)));
-		return loc;
+	public long writeAccelerations(List<Object[]> data){
+		if (data.size() == 0)
+			return 0;
+		JSONArray dataArray = new JSONArray();
+		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
+			Object[] curDat = iter.next();
+			JSONArray locData = new JSONArray();
+			try{
+				locData.put(((Long) curDat[0]) / 1000.0);
+				for (int i = 0; i < 3; i++)
+					locData.put((Float) curDat[1+i]);
+				dataArray.put(locData);
+			}
+			catch (Exception e){
+			}
+		}
+		ContentValues accToPut = new ContentValues();
+		accToPut.put(KEY_DATA, dataArray.toString());
+		return mDb.insert(NEW_ACC_TABLE, null, accToPut);
 	}
 	
-	public long getLocationId(Cursor c){
-		return c.getLong(c.getColumnIndex(LOC_KEY_ID));
+	public long writeWifis(List<Object[]> data){
+		if (data.size() == 0)
+			return 0;
+		JSONArray dataArray = new JSONArray();
+		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
+			Object[] curDat = iter.next();
+			JSONArray locData = new JSONArray();
+			try{
+				locData.put(((Long) curDat[0]) / 1000.0);
+				for (int i = 0; i < 2; i++)
+					locData.put((String) curDat[1+i]);
+				dataArray.put(locData);
+			}
+			catch (Exception e){
+			}
+		}
+		ContentValues accToPut = new ContentValues();
+		accToPut.put(KEY_DATA, dataArray.toString());
+		return mDb.insert(NEW_WIFI_TABLE, null, accToPut);
 	}
 	
-	public long deleteLocation(long id){
-		return mDb.delete(LOCATION_TABLE, LOC_KEY_ID + "=" + id, null);
+	public long writeGyros(List<Object[]> data){
+		if (data.size() == 0)
+			return 0;
+		JSONArray dataArray = new JSONArray();
+		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
+			Object[] curDat = iter.next();
+			JSONArray locData = new JSONArray();
+			try{
+				locData.put(((Long) curDat[0]) / 1000.0);
+				for (int i = 0; i < 3; i++)
+					locData.put((Float) curDat[1+i]);
+				dataArray.put(locData);
+			}
+			catch (Exception e){
+			}
+		}
+		ContentValues accToPut = new ContentValues();
+		accToPut.put(KEY_DATA, dataArray.toString());
+		return mDb.insert(NEW_GYRO_TABLE, null, accToPut);
 	}
 	
-	public long deleteAcceleration(long id) {
-		return mDb.delete(ACCEL_TABLE, ACCEL_KEY_ID + "=" + id, null);
+	public long writeOrientations(List<Object[]> data){
+		if (data.size() == 0)
+			return 0;
+		JSONArray dataArray = new JSONArray();
+		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
+			Object[] curDat = iter.next();
+			JSONArray locData = new JSONArray();
+			try{
+				locData.put(((Long) curDat[0]) / 1000.0);
+				for (int i = 0; i < 3; i++)
+					locData.put((Float) curDat[1+i]);
+				dataArray.put(locData);
+			}
+			catch (Exception e){
+			}
+		}
+		ContentValues accToPut = new ContentValues();
+		accToPut.put(KEY_DATA, dataArray.toString());
+		return mDb.insert(NEW_ORNT_TABLE, null, accToPut);
 	}
 	
+	public long writeLights(List<Object[]> data){
+		if (data.size() == 0)
+			return 0;
+		JSONArray dataArray = new JSONArray();
+		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
+			Object[] curDat = iter.next();
+			JSONArray locData = new JSONArray();
+			try{
+				locData.put(((Long) curDat[0]) / 1000.0);
+				locData.put((Float) curDat[1]);
+				dataArray.put(locData);
+			}
+			catch (Exception e){
+			}
+		}
+		ContentValues accToPut = new ContentValues();
+		accToPut.put(KEY_DATA, dataArray.toString());
+		return mDb.insert(NEW_LIGHT_TABLE, null, accToPut);
+	}
 	
-	//WARNING: TIME MUST BE FIRST COLUMN IN QUERIES. UPLOADER CODE DEPENDS ON THIS
-    public Cursor fetchAllLocations() {
-        return fetchLocations(null);
-    }
-    
-    public Cursor fetchLocations(long limit){
-    	return fetchLocations("" + limit);
-    }
-    
-    private Cursor fetchLocations(String limit){
-    	return mDb.query(LOCATION_TABLE, new String[] {LOC_KEY_ID, LOC_KEY_TIME, LOC_KEY_LATITUDE, 
-        		LOC_KEY_LONGITUDE, LOC_KEY_ACCURACY, LOC_KEY_ALTITUDE,
-        		LOC_KEY_BEARING, LOC_KEY_PROVIDER, LOC_KEY_SPEED},
-                null, null, null, null, LOC_KEY_TIME, limit);
-    }
+	public long writeTemps(List<Object[]> data){
+		if (data.size() == 0)
+			return 0;
+		JSONArray dataArray = new JSONArray();
+		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
+			Object[] curDat = iter.next();
+			JSONArray locData = new JSONArray();
+			try{
+				locData.put(((Long) curDat[0]) / 1000.0);
+				locData.put((Float) curDat[1]);
+				dataArray.put(locData);
+			}
+			catch (Exception e){
+			}
+		}
+		ContentValues accToPut = new ContentValues();
+		accToPut.put(KEY_DATA, dataArray.toString());
+		return mDb.insert(NEW_TEMP_TABLE, null, accToPut);
+	}
     
     public Cursor fetchAllPics() {
     	return fetchPics(null);
@@ -250,7 +349,7 @@ public class DbAdapter {
     }
     
     private Cursor fetchPics(String limit){
-    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, null, null, null, null, LOC_KEY_TIME, limit);
+    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, null, null, null, null, PIX_KEY_ID, limit);
     }
     
     public Cursor fetchAllUnuploadedPics() {
@@ -313,13 +412,14 @@ public class DbAdapter {
     }
     
     public long deleteUploadedPictures(){
-    	Cursor c = mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, PIX_KEY_UPLOAD_STATE + " = 1", null, null, null, LOC_KEY_TIME);
+    	Cursor c = mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, PIX_KEY_UPLOAD_STATE + " = 1", null, null, null, PIX_KEY_ID);
     	c.moveToFirst();
     	while (!c.isAfterLast()){
     		String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
     		 mCtx.deleteFile(picFileName);
     		c.moveToNext();
     	}
+    	c.close();
     	
         return mDb.delete(PIX_TABLE, PIX_KEY_UPLOAD_STATE + "=" + PIC_UPLOADED, null);
     }
@@ -365,44 +465,307 @@ public class DbAdapter {
 		return result;
 	}
 	
-	public long writeWifi(long timeFound, String ssid, String bssid){
-		ContentValues wifiToPut = new ContentValues();
-		wifiToPut.put(WIFI_KEY_TIME, timeFound);
-		wifiToPut.put(WIFI_KEY_SSID, ssid);
-		wifiToPut.put(WIFI_KEY_BSSID, bssid);
+	private static JSONArray gpsChannelArray = null;
+	private static final String[] gpsChannelArrayElements = {"latitude","longitude","altitude","uncertainty in meters","speed","bearing","provider"};
+	
+	public void uploadLocations(String macAdd, String uploadAdd, String devNickName){
 		
-		return mDb.insert(WIFI_TABLE, null, wifiToPut);
-	}
-	
-	public long deleteWifi(long id){
-		return mDb.delete(WIFI_TABLE, WIFI_KEY_ID + "=" + id, null);
-	}
-	
-	public Cursor fetchAllWifis(){
-		return fetchWifis(null);
-	}
-	
-	public Cursor fetchWifis(long limit){
-		return fetchWifis("" + limit);
-	}
-	
-	private Cursor fetchWifis(String limit){
-		return mDb.query(WIFI_TABLE, new String[] {WIFI_KEY_ID, WIFI_KEY_TIME, WIFI_KEY_SSID,
-				WIFI_KEY_BSSID},
-                null, null, null, null, WIFI_KEY_TIME, limit);
-	}
-	
-	public long writeGyro(long timestamp, float[] values){
-		ContentValues gyroToPut = new ContentValues();
-		gyroToPut.put(GYRO_KEY_TIME, timestamp);
-		gyroToPut.put(GYRO_KEY_X, values[0]);
-		gyroToPut.put(GYRO_KEY_Y, values[1]);
-		gyroToPut.put(GYRO_KEY_Z, values[2]);
+		if (gpsChannelArray == null){
+			gpsChannelArray = new JSONArray();
+			for (int i = 0; i < gpsChannelArrayElements.length; i++){
+				gpsChannelArray.put(gpsChannelArrayElements[i]);
+			}
+		}
 		
-		return mDb.insert(GYRO_TABLE, null, gyroToPut);
+		
+		Cursor c = mDb.query(NEW_LOC_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
+		if (!c.moveToFirst()){
+			c.close();
+			return;
+		}
+		
+		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, gpsChannelArray.toString(), c);
+		c.close();
+		if (lastId >= 0)
+			mDb.delete(NEW_LOC_TABLE, KEY_ID + "<=" + lastId, null);
+	    return;
 	}
 	
-	public long deleteGyro(long id){
-		return mDb.delete(GYRO_TABLE, GYRO_KEY_ID + "=" + id, null);
+	private static JSONArray accChannelArray = null;
+	private static final String[] accChannelArrayElements = {"acceleration_x","acceleration_y","acceleration_z"};
+	
+	public void uploadAccelerations(String macAdd, String uploadAdd, String devNickName){
+		
+		if (accChannelArray == null){
+			accChannelArray = new JSONArray();
+			for (int i = 0; i < accChannelArrayElements.length; i++){
+				accChannelArray.put(accChannelArrayElements[i]);
+			}
+		}
+		
+		Cursor c = mDb.query(NEW_ACC_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
+		if (!c.moveToFirst()){
+			c.close();
+			return;
+		}
+		
+		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, accChannelArray.toString(), c);
+		c.close();
+		if (lastId >= 0)
+			mDb.delete(NEW_ACC_TABLE, KEY_ID + "<=" + lastId, null);
+	    return;
+	}
+	
+	private static JSONArray gyroChannelArray = null;
+	private static final String[] gyroChannelArrayElements = {"angular_speed_x","angular_speed_y","angular_speed_z"};
+	
+	public void uploadGyros(String macAdd, String uploadAdd, String devNickName){
+		
+		if (gyroChannelArray == null){
+			gyroChannelArray = new JSONArray();
+			for (int i = 0; i < gyroChannelArrayElements.length; i++){
+				gyroChannelArray.put(gyroChannelArrayElements[i]);
+			}
+		}
+		
+		
+		Cursor c = mDb.query(NEW_GYRO_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
+		if (!c.moveToFirst()){
+			c.close();
+			return;
+		}
+		
+		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, gyroChannelArray.toString(), c);
+		c.close();
+		if (lastId >= 0)
+			mDb.delete(NEW_GYRO_TABLE, KEY_ID + "<=" + lastId, null);
+	    return;
+	}
+	
+	private static JSONArray ornChannelArray = null;
+	private static final String[] ornChannelArrayElements = {"azimuth","pitch","roll"};
+	
+	public void uploadOrientations(String macAdd, String uploadAdd, String devNickName){
+		
+		if (ornChannelArray == null){
+			ornChannelArray = new JSONArray();
+			for (int i = 0; i < ornChannelArrayElements.length; i++){
+				ornChannelArray.put(ornChannelArrayElements[i]);
+			}
+		}
+		
+		
+		Cursor c = mDb.query(NEW_ORNT_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
+		if (!c.moveToFirst()){
+			c.close();
+			return;
+		}
+		
+		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, ornChannelArray.toString(), c);
+		c.close();
+		if (lastId >= 0)
+			mDb.delete(NEW_ORNT_TABLE, KEY_ID + "<=" + lastId, null);
+	    return;
+	}
+	
+	private static JSONArray lightChannelArray = null;
+	private static final String[] lightChannelArrayElements = {"illuminance"};
+	
+	public void uploadIlluminances(String macAdd, String uploadAdd, String devNickName){
+		
+		if (lightChannelArray == null){
+			lightChannelArray = new JSONArray();
+			for (int i = 0; i < lightChannelArrayElements.length; i++){
+				lightChannelArray.put(lightChannelArrayElements[i]);
+			}
+		}
+		
+		
+		Cursor c = mDb.query(NEW_LIGHT_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
+		if (!c.moveToFirst()){
+			c.close();
+			return;
+		}
+		
+		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, lightChannelArray.toString(), c);
+		c.close();
+		if (lastId >= 0)
+			mDb.delete(NEW_LIGHT_TABLE, KEY_ID + "<=" + lastId, null);
+	    return;
+	}
+	
+	private static JSONArray tempChannelArray = null;
+	private static final String[] tempChannelArrayElements = {"temperature"};
+	
+	public void uploadTemperatures(String macAdd, String uploadAdd, String devNickName){
+		
+		if (tempChannelArray == null){
+			tempChannelArray = new JSONArray();
+			for (int i = 0; i < tempChannelArrayElements.length; i++){
+				tempChannelArray.put(tempChannelArrayElements[i]);
+			}
+		}
+		
+		
+		Cursor c = mDb.query(NEW_TEMP_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
+		if (!c.moveToFirst()){
+			c.close();
+			return;
+		}
+		
+		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, tempChannelArray.toString(), c);
+		c.close();
+		if (lastId >= 0)
+			mDb.delete(NEW_TEMP_TABLE, KEY_ID + "<=" + lastId, null);
+	    return;
+	}
+	
+	private static JSONArray wifiChannelArray = null;
+	private static JSONObject wifiSpecs = null;
+	private static final String[] wifiChannelArrayElements = {"SSID", "BSSID"};
+	
+	public void uploadWifis(String macAdd, String uploadAdd, String devNickName){
+		
+		if (wifiChannelArray == null){
+			wifiChannelArray = new JSONArray();
+			for (int i = 0; i < wifiChannelArrayElements.length; i++){
+				wifiChannelArray.put(wifiChannelArrayElements[i]);
+			}
+		}
+		
+		if (wifiSpecs == null){
+			wifiSpecs = new JSONObject();
+		 	try {
+		 		JSONObject ssidInfo = new JSONObject();
+			 	ssidInfo.put("type", "String");
+				wifiSpecs.put("SSID", ssidInfo);
+				wifiSpecs.put("BSSID", ssidInfo);
+			} catch (JSONException e) {
+			}
+		 	
+		}
+		
+		
+		Cursor c = mDb.query(NEW_WIFI_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
+		if (!c.moveToFirst()){
+			c.close();
+			return;
+		}
+		
+		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, wifiChannelArray.toString(), wifiSpecs.toString(), c);
+		c.close();
+		if (lastId >= 0)
+			mDb.delete(NEW_WIFI_TABLE, KEY_ID + "<=" + lastId, null);
+	    return;
+	}
+	
+	public boolean uploadPhoto(String macAdd, String uploadAdd, String devNickName, final CameraReview camRev, final long id){
+		Cursor c = fetchPicture(id);
+		if (!c.moveToFirst()){
+			c.close();
+			return false;
+		}
+		String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
+	    c.close();
+	    
+	    try{
+	    
+		    FileInputStream fis = new FileInputStream(picFileName);
+		    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		    
+		    byte[] buffer = new byte[1024];
+		    int read = 0;
+		    
+		    while (read >= 0){
+		    	read = fis.read(buffer);
+		    	if (read > 0){
+		    		bos.write(buffer,0,read);
+		    	}
+		    }
+		    
+		    fis.close();
+		    
+		    
+			ByteArrayBody bin = new ByteArrayBody(bos.toByteArray(), "image/jpeg", picFileName);
+			MultipartEntity reqEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
+			reqEntity.addPart("device_id",new StringBody(macAdd));
+			reqEntity.addPart("device_class",new StringBody(android.os.Build.MODEL));
+			reqEntity.addPart("dev_nickname",new StringBody(devNickName));
+			reqEntity.addPart("photo",bin);
+			
+			HttpClient mHttpClient = new DefaultHttpClient();
+	    	HttpPost postToServer = new HttpPost(uploadAdd);
+			
+			postToServer.setEntity(reqEntity);
+			HttpResponse response = mHttpClient.execute(postToServer);
+			StatusLine status = response.getStatusLine();
+			if (status.getStatusCode() >= 200 && status.getStatusCode() < 300){
+				setPictureUploadState(id,DbAdapter.PIC_UPLOADED);
+				if (camRev != null){
+					camRev.runOnUiThread(new Runnable(){
+						public void run(){
+							camRev.onImageUploaded(id);
+						}
+					});
+				}
+				return true;
+			}
+	    }
+	    catch (Exception e){
+	    }
+	    return false;
+	}
+	
+	private long uploadLogData(String macAdd, String uploadAdd, String devNickName, String channels, Cursor dataCursor){
+		return uploadLogData(macAdd, uploadAdd, devNickName, channels, null, dataCursor);
+	}
+	
+	private long uploadLogData(String macAdd, String uploadAdd, String devNickName, String channels, String channelSpecs, Cursor dataCursor){
+		StringBuffer dataToUpload = new StringBuffer();
+		boolean first = true;
+		
+		long lastId = 0;
+		
+		while (!dataCursor.isAfterLast()){
+			String curData = dataCursor.getString(dataCursor.getColumnIndex(KEY_DATA));
+			lastId = dataCursor.getLong(dataCursor.getColumnIndex(KEY_ID));
+			if (first){
+				dataToUpload.append(curData);
+				first = false;
+			}
+			else{
+				dataToUpload.deleteCharAt(dataToUpload.length() - 1);
+				dataToUpload.append(",");
+				dataToUpload.append(curData.substring(1));
+			}
+			dataCursor.moveToNext();
+		}
+		if (uploadData(uploadAdd, macAdd, devNickName, channels, channelSpecs, dataToUpload.toString()))
+			return lastId;
+		return -1;
+	}
+	
+	private boolean uploadData(String uploadAdd, String macAdd, String devNickName, String channels, String channelSpecs, String data){
+		try {
+    		List<NameValuePair> postRequest = new ArrayList<NameValuePair>();
+	    	postRequest.add(new BasicNameValuePair("device_id", macAdd));
+	    	postRequest.add(new BasicNameValuePair("timezone","UTC"));
+	    	postRequest.add(new BasicNameValuePair("device_class",android.os.Build.MODEL));
+	    	postRequest.add(new BasicNameValuePair("dev_nickname",devNickName));
+	    	postRequest.add(new BasicNameValuePair("channel_names", channels));
+	    	if (channelSpecs != null){
+	    		postRequest.add(new BasicNameValuePair("channel_specs", channelSpecs));
+	    	}
+	    	postRequest.add(new BasicNameValuePair("data", data));
+	    	HttpClient mHttpClient = new DefaultHttpClient();
+	    	HttpPost postToServer = new HttpPost(uploadAdd);
+    		postToServer.setEntity(new UrlEncodedFormEntity(postRequest));
+    		HttpResponse response = mHttpClient.execute(postToServer);
+    		int statusCode = response.getStatusLine().getStatusCode();
+    		if (statusCode >= 200 && statusCode < 300)
+	    		return true;
+    	} catch (Exception e) {
+    	}
+    	return false;
 	}
 }

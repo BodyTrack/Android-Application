@@ -38,7 +38,7 @@ public class Sensors extends Activity implements OnClickListener{
 	
 	protected DbAdapter dbAdapter; 
 	
-	private Button toggleAcc, toggleGyro, toggleWifi;
+	private Button toggleAcc, toggleGyro, toggleWifi, toggleLight, toggleTemp, toggleOrnt, toggleGPS;
 	
 	private TextView outputArea;
 	
@@ -46,18 +46,30 @@ public class Sensors extends Activity implements OnClickListener{
 	public void onCreate(Bundle savedInstanceState){
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.sensors);
-		dbAdapter = new DbAdapter(this).open();
+		dbAdapter = DbAdapter.getDbAdapter(getApplicationContext());
 		
 		toggleAcc = (Button)findViewById(R.id.toggleAcc);
 		toggleGyro = (Button)findViewById(R.id.toggleGyro);
 		toggleWifi = (Button)findViewById(R.id.toggleWifi);
+		toggleLight = (Button)findViewById(R.id.toggleLight);
+		toggleTemp = (Button)findViewById(R.id.toggleTemp);
+		toggleOrnt = (Button)findViewById(R.id.toggleOrnt);
+		toggleGPS = (Button)findViewById(R.id.toggleGPS);
 		toggleAcc.setEnabled(false);
 		toggleGyro.setEnabled(false);
 		toggleWifi.setEnabled(false);
+		toggleLight.setEnabled(false);
+		toggleTemp.setEnabled(false);
+		toggleOrnt.setEnabled(false);
+		toggleGPS.setEnabled(false);
 		
 		toggleAcc.setOnClickListener(this);
 		toggleGyro.setOnClickListener(this);
 		toggleWifi.setOnClickListener(this);
+		toggleLight.setOnClickListener(this);
+		toggleTemp.setOnClickListener(this);
+		toggleOrnt.setOnClickListener(this);
+		toggleGPS.setOnClickListener(this);
 		
 		Context ctx = getApplicationContext();
     	Intent intent = new Intent(ctx, BTService.class);
@@ -113,6 +125,66 @@ public class Sensors extends Activity implements OnClickListener{
 				e.printStackTrace();
 			}
 		}
+		else if (v == toggleLight){
+			try {
+				if (btBinder.isLogging(BTService.LIGHT_LOGGING)){
+					btBinder.stopLogging(BTService.LIGHT_LOGGING);
+					toggleLight.setText(R.string.startLight);
+				}
+				else{
+					btBinder.startLogging(BTService.LIGHT_LOGGING);
+					toggleLight.setText(R.string.stopLight);
+				}
+			} catch (RemoteException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		else if (v == toggleTemp){
+			try {
+				if (btBinder.isLogging(BTService.TEMP_LOGGING)){
+					btBinder.stopLogging(BTService.TEMP_LOGGING);
+					toggleTemp.setText(R.string.startTemp);
+				}
+				else{
+					btBinder.startLogging(BTService.TEMP_LOGGING);
+					toggleTemp.setText(R.string.stopTemp);
+				}
+			} catch (RemoteException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		else if (v == toggleOrnt){
+			try {
+				if (btBinder.isLogging(BTService.ORNT_LOGGING)){
+					btBinder.stopLogging(BTService.ORNT_LOGGING);
+					toggleOrnt.setText(R.string.startOrnt);
+				}
+				else{
+					btBinder.startLogging(BTService.ORNT_LOGGING);
+					toggleOrnt.setText(R.string.stopOrnt);
+				}
+			} catch (RemoteException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		else if (v == toggleGPS){
+			try {
+				if (btBinder.isLogging(BTService.GPS_LOGGING)){
+					btBinder.stopLogging(BTService.GPS_LOGGING);
+					toggleGPS.setText(R.string.startGPS);
+				}
+				else{
+					btBinder.startLogging(BTService.GPS_LOGGING);
+					toggleGPS.setText(R.string.stopGPS);
+				}
+			} catch (RemoteException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	public void onResume(){
@@ -134,23 +206,33 @@ public class Sensors extends Activity implements OnClickListener{
     };
     
     protected void updateButtons(){
-    	if (btBinder == null){
+    	/*if (btBinder == null){
     		if (toggleAcc != null)
     			toggleAcc.setEnabled(false);
     		if (toggleGyro != null)
     			toggleGyro.setEnabled(false);
     		if (toggleWifi != null)
     			toggleWifi.setEnabled(false);
+    		if (toggleLight != null)
+    			toggleLight.set
 			return;
-    	}
+    	}*/
     	try{
 			toggleAcc.setText(btBinder.isLogging(BTService.ACC_LOGGING) ? R.string.stop_acc : R.string.start_acc);
 			toggleGyro.setText(btBinder.isLogging(BTService.GYRO_LOGGING) ? R.string.stopGyro : R.string.startGyro);
 			toggleWifi.setText(btBinder.isLogging(BTService.WIFI_LOGGING) ? R.string.stopWifi : R.string.startWifi);
+			toggleLight.setText(btBinder.isLogging(BTService.LIGHT_LOGGING) ? R.string.stopLight : R.string.startLight);
+			toggleTemp.setText(btBinder.isLogging(BTService.TEMP_LOGGING) ? R.string.stopTemp : R.string.startTemp);
+			toggleOrnt.setText(btBinder.isLogging(BTService.ORNT_LOGGING) ? R.string.stopOrnt : R.string.startOrnt);
+			toggleGPS.setText(btBinder.isLogging(BTService.GPS_LOGGING) ? R.string.stopGPS : R.string.startGPS);
 			
 			toggleAcc.setEnabled(btBinder.canLog(BTService.ACC_LOGGING));
 			toggleGyro.setEnabled(btBinder.canLog(BTService.GYRO_LOGGING));
 			toggleWifi.setEnabled(btBinder.canLog(BTService.WIFI_LOGGING));
+			toggleLight.setEnabled(btBinder.canLog(BTService.LIGHT_LOGGING));
+			toggleTemp.setEnabled(btBinder.canLog(BTService.TEMP_LOGGING));
+			toggleOrnt.setEnabled(btBinder.canLog(BTService.ORNT_LOGGING));
+			toggleGPS.setEnabled(btBinder.canLog(BTService.GPS_LOGGING));
     	}
     	catch (Exception e){}
     }

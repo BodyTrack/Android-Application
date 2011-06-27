@@ -15,7 +15,6 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.bodytrack.BodyTrack.Activities.CameraReview;
-import org.bodytrack.BodyTrack.Activities.BodyTrackExceptionHandler;
 import org.bodytrack.BodyTrack.Activities.HomeTabbed;
 import org.json.JSONObject;
 

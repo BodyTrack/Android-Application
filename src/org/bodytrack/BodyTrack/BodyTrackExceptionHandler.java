@@ -1,4 +1,4 @@
-package org.bodytrack.BodyTrack.Activities;
+package org.bodytrack.BodyTrack;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;

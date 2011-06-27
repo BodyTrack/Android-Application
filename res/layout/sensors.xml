@@ -4,7 +4,11 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     >
+    <Button android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/toggleGPS" android:text="@string/startGPS"></Button>
     <Button android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/toggleAcc" android:text="@string/start_acc"></Button>
     <Button android:id="@+id/toggleGyro" android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startGyro"></Button>
     <Button android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startWifi" android:id="@+id/toggleWifi"></Button>
+    <Button android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startLight" android:id="@+id/toggleLight"></Button>
+    <Button android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startTemp" android:id="@+id/toggleTemp"></Button>
+    <Button android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startOrnt" android:id="@+id/toggleOrnt"></Button>
 </LinearLayout>

@@ -46,7 +46,7 @@ public class BarcodeReview extends ListActivity {
 		getBarcode.setOnClickListener(mGetBarcode);
 		
         //connect to database
-		dbAdapter = new DbAdapter(ctx).open();
+		dbAdapter = DbAdapter.getDbAdapter(ctx);
 		
 		Log.v(TAG, "Got DB adapter");
 		

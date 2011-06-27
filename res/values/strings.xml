@@ -82,5 +82,14 @@
   	<string name="title_device_nickname">Nickname</string>
   	<string name="sumary_device_nickname">Nickname that will be associated with data from this phone.</string>
   	<string name="startGyro">Start Gyroscope Tracking</string><string name="stopGyro">Stop Gyroscope Tracking</string>
-  	<string name="startWifi">Start Wifi Tracking</string><string name="stopWifi">Stop Wifi Tracking</string>
+  	<string name="startWifi">Start Wifi Tracking</string>
+  	<string name="stopWifi">Stop Wifi Tracking</string>
+  	<string name="startTemp">Start Temperature Tracking</string>
+  	<string name="stopTemp">Stop Temperature Tracking</string>
+  	<string name="startLight">Start IlluminanceTracking</string>
+  	<string name="stopLight">Stop IlluminanceTracking</string>
+  	<string name="startOrnt">Start Orientation Tracking</string>
+  	<string name="stopOrnt">Stop Orientation Tracking</string>
+  	<string name="startGPS">Start GPS Tracking</string>
+  	<string name="stopGPS">Stop GPS Tracking</string>
 </resources>
