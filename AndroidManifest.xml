@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
       package="org.bodytrack.BodyTrack"
-      android:versionName="1.07" android:versionCode="8">
+      android:versionName="1.08" android:versionCode="9">
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"></uses-permission>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"></uses-permission>
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"></uses-permission>
+    <uses-permission android:name="android.permission.WAKE_LOCK"></uses-permission>
     <application android:icon="@drawable/icon" android:label="@string/app_name" android:debuggable="true">
         <activity android:name=".Activities.HomeTabbed">
             <intent-filter>
@@ -12,8 +13,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-		<activity android:name=".Activities.GpsSvcControl">
-		</activity>
+		
 		<activity android:name=".Activities.BTPrefs">
 		</activity>
 		<activity android:name=".Activities.CameraActivity"
@@ -25,7 +25,7 @@
 		
 </activity>
 		
-		<activity android:name=".Activities.Sensors"></activity><service android:name=".BTService">
+		<activity android:name=".Activities.Sensors"></activity><activity android:name=".Activities.Stats"></activity><service android:name=".BTService">
 		</service>
 		<service android:name=".AccelerometerService"></service>
 	

@@ -22,6 +22,15 @@ public class BodyTrackExceptionHandler implements UncaughtExceptionHandler {
 			out.println("Timestamp: " + timestamp);
 			out.println("Stack trace:");
 			ex.printStackTrace(out);
+			BTStatisticTracker btStats = BTStatisticTracker.getInstance();
+			out.println("Time spent converting data to JSON: " + (btStats.getTimeSpentConvertingToJSON() / 1000.0));
+			out.println("Time spent writing to DB: " + (btStats.getTimeSpentPushingIntoDB() / 1000.0));
+			out.println("Time spent fetching and joining data: " + (btStats.getTimeSpentGatheringAndJoining() / 1000.0));
+			out.println("Time spent uploading data: " + (btStats.getTimeSpentUploadingData() / 1000.0));
+			out.println("Time spent deleting data: " + (btStats.getTimeSpentDeletingData() / 1000.0));
+			out.println("Total uptime: " + (btStats.getTotalUptime() / 1000.0));
+			out.println("Console:");
+			out.println(btStats.getConsoleText());
 			out.close();
 		} catch (FileNotFoundException e) {
 		}

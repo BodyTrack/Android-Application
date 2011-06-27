@@ -137,6 +137,8 @@ public class DbAdapter {
     private DatabaseHelper mDbHelper;
     private Context mCtx;
     private SQLiteDatabase mDb;
+    
+    private BTStatisticTracker btStats;
 	
 	private static class DatabaseHelper extends SQLiteOpenHelper {
 		
@@ -175,6 +177,7 @@ public class DbAdapter {
 	}
 	
 	private DbAdapter(Context ctx) {
+		btStats = BTStatisticTracker.getInstance();
 		this.mCtx = ctx;
 	}
 	
@@ -192,6 +195,7 @@ public class DbAdapter {
 	public long writeLocations(List<Object[]> data){
 		if (data.size() == 0)
 			return 0;
+		long start = System.currentTimeMillis();
 		JSONArray dataArray = new JSONArray();
 		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
 			Object[] curDat = iter.next();
@@ -211,14 +215,22 @@ public class DbAdapter {
 			catch (Exception e){
 			}
 		}
+		String jsonData = dataArray.toString();
+		long finish = System.currentTimeMillis();
+		btStats.addTimeSpentConvertingToJSON(finish - start);
+		start = finish;
 		ContentValues locToPut = new ContentValues();
-		locToPut.put(KEY_DATA, dataArray.toString());
-		return mDb.insert(NEW_LOC_TABLE, null, locToPut);
+		locToPut.put(KEY_DATA, jsonData);
+		long retVal = mDb.insert(NEW_LOC_TABLE, null, locToPut);
+		finish = System.currentTimeMillis();
+		btStats.addTimeSpentPushingIntoDB(finish - start);
+		return retVal;
 	}
 	
 	public long writeAccelerations(List<Object[]> data){
 		if (data.size() == 0)
 			return 0;
+		long start = System.currentTimeMillis();
 		JSONArray dataArray = new JSONArray();
 		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
 			Object[] curDat = iter.next();
@@ -232,14 +244,22 @@ public class DbAdapter {
 			catch (Exception e){
 			}
 		}
+		String jsonData = dataArray.toString();
+		long finish = System.currentTimeMillis();
+		btStats.addTimeSpentConvertingToJSON(finish - start);
+		start = finish;
 		ContentValues accToPut = new ContentValues();
-		accToPut.put(KEY_DATA, dataArray.toString());
-		return mDb.insert(NEW_ACC_TABLE, null, accToPut);
+		accToPut.put(KEY_DATA, jsonData);
+		long retVal = mDb.insert(NEW_ACC_TABLE, null, accToPut);
+		finish = System.currentTimeMillis();
+		btStats.addTimeSpentPushingIntoDB(finish - start);
+		return retVal;
 	}
 	
 	public long writeWifis(List<Object[]> data){
 		if (data.size() == 0)
 			return 0;
+		long start = System.currentTimeMillis();
 		JSONArray dataArray = new JSONArray();
 		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
 			Object[] curDat = iter.next();
@@ -253,14 +273,22 @@ public class DbAdapter {
 			catch (Exception e){
 			}
 		}
-		ContentValues accToPut = new ContentValues();
-		accToPut.put(KEY_DATA, dataArray.toString());
-		return mDb.insert(NEW_WIFI_TABLE, null, accToPut);
+		String jsonData = dataArray.toString();
+		long finish = System.currentTimeMillis();
+		btStats.addTimeSpentConvertingToJSON(finish - start);
+		start = finish;
+		ContentValues locToPut = new ContentValues();
+		locToPut.put(KEY_DATA, jsonData);
+		long retVal = mDb.insert(NEW_WIFI_TABLE, null, locToPut);
+		finish = System.currentTimeMillis();
+		btStats.addTimeSpentPushingIntoDB(finish - start);
+		return retVal;
 	}
 	
 	public long writeGyros(List<Object[]> data){
 		if (data.size() == 0)
 			return 0;
+		long start = System.currentTimeMillis();
 		JSONArray dataArray = new JSONArray();
 		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
 			Object[] curDat = iter.next();
@@ -274,14 +302,22 @@ public class DbAdapter {
 			catch (Exception e){
 			}
 		}
-		ContentValues accToPut = new ContentValues();
-		accToPut.put(KEY_DATA, dataArray.toString());
-		return mDb.insert(NEW_GYRO_TABLE, null, accToPut);
+		String jsonData = dataArray.toString();
+		long finish = System.currentTimeMillis();
+		btStats.addTimeSpentConvertingToJSON(finish - start);
+		start = finish;
+		ContentValues locToPut = new ContentValues();
+		locToPut.put(KEY_DATA, jsonData);
+		long retVal = mDb.insert(NEW_GYRO_TABLE, null, locToPut);
+		finish = System.currentTimeMillis();
+		btStats.addTimeSpentPushingIntoDB(finish - start);
+		return retVal;
 	}
 	
 	public long writeOrientations(List<Object[]> data){
 		if (data.size() == 0)
 			return 0;
+		long start = System.currentTimeMillis();
 		JSONArray dataArray = new JSONArray();
 		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
 			Object[] curDat = iter.next();
@@ -295,14 +331,22 @@ public class DbAdapter {
 			catch (Exception e){
 			}
 		}
-		ContentValues accToPut = new ContentValues();
-		accToPut.put(KEY_DATA, dataArray.toString());
-		return mDb.insert(NEW_ORNT_TABLE, null, accToPut);
+		String jsonData = dataArray.toString();
+		long finish = System.currentTimeMillis();
+		btStats.addTimeSpentConvertingToJSON(finish - start);
+		start = finish;
+		ContentValues locToPut = new ContentValues();
+		locToPut.put(KEY_DATA, jsonData);
+		long retVal = mDb.insert(NEW_ORNT_TABLE, null, locToPut);
+		finish = System.currentTimeMillis();
+		btStats.addTimeSpentPushingIntoDB(finish - start);
+		return retVal;
 	}
 	
 	public long writeLights(List<Object[]> data){
 		if (data.size() == 0)
 			return 0;
+		long start = System.currentTimeMillis();
 		JSONArray dataArray = new JSONArray();
 		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
 			Object[] curDat = iter.next();
@@ -315,14 +359,22 @@ public class DbAdapter {
 			catch (Exception e){
 			}
 		}
-		ContentValues accToPut = new ContentValues();
-		accToPut.put(KEY_DATA, dataArray.toString());
-		return mDb.insert(NEW_LIGHT_TABLE, null, accToPut);
+		String jsonData = dataArray.toString();
+		long finish = System.currentTimeMillis();
+		btStats.addTimeSpentConvertingToJSON(finish - start);
+		start = finish;
+		ContentValues locToPut = new ContentValues();
+		locToPut.put(KEY_DATA, jsonData);
+		long retVal = mDb.insert(NEW_LIGHT_TABLE, null, locToPut);
+		finish = System.currentTimeMillis();
+		btStats.addTimeSpentPushingIntoDB(finish - start);
+		return retVal;
 	}
 	
 	public long writeTemps(List<Object[]> data){
 		if (data.size() == 0)
 			return 0;
+		long start = System.currentTimeMillis();
 		JSONArray dataArray = new JSONArray();
 		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
 			Object[] curDat = iter.next();
@@ -335,9 +387,16 @@ public class DbAdapter {
 			catch (Exception e){
 			}
 		}
-		ContentValues accToPut = new ContentValues();
-		accToPut.put(KEY_DATA, dataArray.toString());
-		return mDb.insert(NEW_TEMP_TABLE, null, accToPut);
+		String jsonData = dataArray.toString();
+		long finish = System.currentTimeMillis();
+		btStats.addTimeSpentConvertingToJSON(finish - start);
+		start = finish;
+		ContentValues locToPut = new ContentValues();
+		locToPut.put(KEY_DATA, jsonData);
+		long retVal = mDb.insert(NEW_TEMP_TABLE, null, locToPut);
+		finish = System.currentTimeMillis();
+		btStats.addTimeSpentPushingIntoDB(finish - start);
+		return retVal;
 	}
     
     public Cursor fetchAllPics() {
@@ -394,6 +453,14 @@ public class DbAdapter {
     
     public long setPictureUploadState(long id, int state){
     	ContentValues updateUploaded = new ContentValues();
+    	switch (state){
+    		case PIC_PENDING_UPLOAD:
+    			btStats.out.println("Pic " + id + " marked for upload");
+    			break;
+    		case PIC_UPLOADED:
+    			btStats.out.println("Pic " + id + " uploaded");
+    			break;
+    	}
     	updateUploaded.put(PIX_KEY_UPLOAD_STATE, state);
     	return mDb.update(PIX_TABLE, updateUploaded, PIX_KEY_ID + "=" + id, null);
     }
@@ -403,6 +470,7 @@ public class DbAdapter {
     	if (c.getCount() > 0){
 	    	String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
 	    	new File(picFileName).delete();
+	    	btStats.out.println("Pic " + id + " deleted");
     	}
         c.close();
         
@@ -462,6 +530,14 @@ public class DbAdapter {
 		if (result == 0){
 			mCtx.deleteFile(picFileName);
 		}
+		else{
+			Cursor c = mDb.query(PIX_TABLE, new String[]{PIX_KEY_ID}, null, null, null, null, PIX_KEY_ID + " DESC", "1");
+			if (c.moveToFirst()){
+				long id = c.getLong(c.getColumnIndex(PIX_KEY_ID));
+				btStats.out.println("Pic " + id + " created");
+			}
+			c.close();
+		}
 		return result;
 	}
 	
@@ -486,8 +562,11 @@ public class DbAdapter {
 		
 		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, gpsChannelArray.toString(), c);
 		c.close();
-		if (lastId >= 0)
+		if (lastId >= 0){
+			long start = System.currentTimeMillis();
 			mDb.delete(NEW_LOC_TABLE, KEY_ID + "<=" + lastId, null);
+			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
+		}
 	    return;
 	}
 	
@@ -511,8 +590,11 @@ public class DbAdapter {
 		
 		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, accChannelArray.toString(), c);
 		c.close();
-		if (lastId >= 0)
+		if (lastId >= 0){
+			long start = System.currentTimeMillis();
 			mDb.delete(NEW_ACC_TABLE, KEY_ID + "<=" + lastId, null);
+			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
+		}
 	    return;
 	}
 	
@@ -537,8 +619,11 @@ public class DbAdapter {
 		
 		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, gyroChannelArray.toString(), c);
 		c.close();
-		if (lastId >= 0)
+		if (lastId >= 0){
+			long start = System.currentTimeMillis();
 			mDb.delete(NEW_GYRO_TABLE, KEY_ID + "<=" + lastId, null);
+			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
+		}
 	    return;
 	}
 	
@@ -563,8 +648,11 @@ public class DbAdapter {
 		
 		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, ornChannelArray.toString(), c);
 		c.close();
-		if (lastId >= 0)
+		if (lastId >= 0){
+			long start = System.currentTimeMillis();
 			mDb.delete(NEW_ORNT_TABLE, KEY_ID + "<=" + lastId, null);
+			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
+		}
 	    return;
 	}
 	
@@ -589,8 +677,11 @@ public class DbAdapter {
 		
 		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, lightChannelArray.toString(), c);
 		c.close();
-		if (lastId >= 0)
+		if (lastId >= 0){
+			long start = System.currentTimeMillis();
 			mDb.delete(NEW_LIGHT_TABLE, KEY_ID + "<=" + lastId, null);
+			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
+		}
 	    return;
 	}
 	
@@ -615,8 +706,11 @@ public class DbAdapter {
 		
 		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, tempChannelArray.toString(), c);
 		c.close();
-		if (lastId >= 0)
+		if (lastId >= 0){
+			long start = System.currentTimeMillis();
 			mDb.delete(NEW_TEMP_TABLE, KEY_ID + "<=" + lastId, null);
+			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
+		}
 	    return;
 	}
 	
@@ -654,8 +748,11 @@ public class DbAdapter {
 		
 		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, wifiChannelArray.toString(), wifiSpecs.toString(), c);
 		c.close();
-		if (lastId >= 0)
+		if (lastId >= 0){
+			long start = System.currentTimeMillis();
 			mDb.delete(NEW_WIFI_TABLE, KEY_ID + "<=" + lastId, null);
+			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
+		}
 	    return;
 	}
 	
@@ -685,8 +782,8 @@ public class DbAdapter {
 		    
 		    fis.close();
 		    
-		    
-			ByteArrayBody bin = new ByteArrayBody(bos.toByteArray(), "image/jpeg", picFileName);
+		    byte[] imageData = bos.toByteArray();
+			ByteArrayBody bin = new ByteArrayBody(imageData, "image/jpeg", picFileName);
 			MultipartEntity reqEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
 			reqEntity.addPart("device_id",new StringBody(macAdd));
 			reqEntity.addPart("device_class",new StringBody(android.os.Build.MODEL));
@@ -699,6 +796,7 @@ public class DbAdapter {
 			postToServer.setEntity(reqEntity);
 			HttpResponse response = mHttpClient.execute(postToServer);
 			StatusLine status = response.getStatusLine();
+			btStats.logBytesUploaded(imageData.length, status.getStatusCode());
 			if (status.getStatusCode() >= 200 && status.getStatusCode() < 300){
 				setPictureUploadState(id,DbAdapter.PIC_UPLOADED);
 				if (camRev != null){
@@ -726,6 +824,8 @@ public class DbAdapter {
 		
 		long lastId = 0;
 		
+		long start = System.currentTimeMillis();
+		
 		while (!dataCursor.isAfterLast()){
 			String curData = dataCursor.getString(dataCursor.getColumnIndex(KEY_DATA));
 			lastId = dataCursor.getLong(dataCursor.getColumnIndex(KEY_ID));
@@ -740,31 +840,39 @@ public class DbAdapter {
 			}
 			dataCursor.moveToNext();
 		}
-		if (uploadData(uploadAdd, macAdd, devNickName, channels, channelSpecs, dataToUpload.toString()))
+		String dataString = dataToUpload.toString();
+		btStats.addTimeSpentGatheringAndJoining(System.currentTimeMillis() - start);
+		if (uploadData(uploadAdd, macAdd, devNickName, channels, channelSpecs, dataString))
 			return lastId;
 		return -1;
 	}
 	
 	private boolean uploadData(String uploadAdd, String macAdd, String devNickName, String channels, String channelSpecs, String data){
-		try {
-    		List<NameValuePair> postRequest = new ArrayList<NameValuePair>();
-	    	postRequest.add(new BasicNameValuePair("device_id", macAdd));
-	    	postRequest.add(new BasicNameValuePair("timezone","UTC"));
-	    	postRequest.add(new BasicNameValuePair("device_class",android.os.Build.MODEL));
-	    	postRequest.add(new BasicNameValuePair("dev_nickname",devNickName));
-	    	postRequest.add(new BasicNameValuePair("channel_names", channels));
+		long start = System.currentTimeMillis();
+		try {    		
+    		MultipartEntity reqEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
+    		reqEntity.addPart("device_id", new StringBody(macAdd));
+    		reqEntity.addPart("timezone", new StringBody("UTC"));
+    		reqEntity.addPart("device_class", new StringBody(android.os.Build.MODEL));
+    		reqEntity.addPart("dev_nickname", new StringBody(devNickName));
+    		reqEntity.addPart("channel_names", new StringBody(channels));
 	    	if (channelSpecs != null){
-	    		postRequest.add(new BasicNameValuePair("channel_specs", channelSpecs));
+	    		reqEntity.addPart("channel_specs",new StringBody(channelSpecs));
 	    	}
-	    	postRequest.add(new BasicNameValuePair("data", data));
+	    	reqEntity.addPart("data", new StringBody(data));
 	    	HttpClient mHttpClient = new DefaultHttpClient();
 	    	HttpPost postToServer = new HttpPost(uploadAdd);
-    		postToServer.setEntity(new UrlEncodedFormEntity(postRequest));
+    		postToServer.setEntity(reqEntity);
     		HttpResponse response = mHttpClient.execute(postToServer);
     		int statusCode = response.getStatusLine().getStatusCode();
-    		if (statusCode >= 200 && statusCode < 300)
+    		btStats.logBytesUploaded(data.length(), statusCode);
+    		if (statusCode >= 200 && statusCode < 300){
 	    		return true;
+    		}
     	} catch (Exception e) {
+    	}
+    	finally{
+    		btStats.addTimeSpentUploadingData(System.currentTimeMillis() - start);
     	}
     	return false;
 	}

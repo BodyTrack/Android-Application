@@ -126,7 +126,6 @@ public class PreferencesAdapter {
 		
 		@Override
 		protected Void doInBackground(HomeTabbed... objs) {
-			Thread.setDefaultUncaughtExceptionHandler(new BodyTrackExceptionHandler());
 			caller = objs[0];
 			int uid = INVALID_USER_ID;
 			if (isNetworkEnabled()){

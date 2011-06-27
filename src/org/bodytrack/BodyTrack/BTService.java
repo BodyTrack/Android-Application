@@ -34,12 +34,15 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -54,7 +57,7 @@ public class BTService extends Service{
 	public static final String TAG = "BTService";
 	
 	
-	private final long minTime = 1000 * 60 * 5;
+	private final long minTime = 1000 * 20;
 	private final long minDistance = 0;
 	
 	
@@ -62,6 +65,12 @@ public class BTService extends Service{
 	private LocationManager locMan;
 	private SensorManager senseMan;
 	private WifiManager wifiManager;
+	private ConnectivityManager conMan;
+	private PowerManager powerMan;
+	
+	private BTStatisticTracker btStats;
+	
+	private PowerManager.WakeLock wakeLock;
 	
 	private WifiScanTask curWifiScanner;
 	private DbDataWriter dbUpdaterTask;
@@ -88,6 +97,12 @@ public class BTService extends Service{
 	public static final int ORNT_LOGGING = 5;
 	public static final int LIGHT_LOGGING = 6;
 	
+	private boolean foregroundEnabled = false;
+	
+	private String[] logNames = {"GPS", "Accelerometer", "Gyroscope", "WiFi", "Temperature",
+			"Orientation", "Illuminance"
+	};
+	
 	private List<List<Object[]>> dataLists = new ArrayList<List<Object[]>>();
 	
 	private PreferencesAdapter prefAdapter;
@@ -101,11 +116,16 @@ public class BTService extends Service{
     	for (int i = 0; i < NUM_LOGGERS; i++){
     		dataLists.add(new LinkedList<Object[]>());
     	}
+    	
+    	btStats = BTStatisticTracker.getInstance();
 				
 		/*Get an instance of the location manager*/
 		locMan = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		senseMan = (SensorManager) getSystemService(SENSOR_SERVICE);
 		wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+		conMan = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+		powerMan = (PowerManager) getSystemService(Context.POWER_SERVICE);
+		wakeLock = powerMan.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BTService WakeLock");
 		
 		dbAdapter = DbAdapter.getDbAdapter(getApplicationContext());
 		
@@ -151,6 +171,9 @@ public class BTService extends Service{
 	    
 	    //Run the service in the foreground using the compatibility method
 	    startForegroundCompat(NOTIFICATION, foregroundSvcNotify);
+	    wakeLock.acquire();
+	    foregroundEnabled = true;
+	    btStats.out.println("Passive WakeLock acquired");
 	}
 	
 	@Override
@@ -214,8 +237,9 @@ public class BTService extends Service{
 			default:
 				return;
 		}
+		btStats.out.println(logNames[id] + " tracking enabled");
 		isLogging[id] = true;
-		if (anyLogging()){
+		if (!foregroundEnabled && anyLogging()){
 			bringToForeground();
 		}
 		
@@ -265,8 +289,9 @@ public class BTService extends Service{
 			default:
 				return;
 		}
+		btStats.out.println(logNames[id] + " tracking disabled");
 		isLogging[id] = false;
-		if (!anyLogging()){
+		if (foregroundEnabled && !anyLogging()){
 			stopForegroundCompat(NOTIFICATION);
 		}
 	}
@@ -343,6 +368,9 @@ public class BTService extends Service{
 	 */
 	void stopForegroundCompat(int id) {
 	    // If we have the new stopForeground API, then use it.
+		wakeLock.release();
+		foregroundEnabled = false;
+		btStats.out.println("Passive WakeLock released");
 	    if (mStopForeground != null) {
 	        mStopForegroundArgs[0] = Boolean.TRUE;
 	        try {
@@ -512,7 +540,6 @@ public class BTService extends Service{
 		
 		@Override
 		protected Void doInBackground(Void... objs) {
-			Thread.setDefaultUncaughtExceptionHandler(new BodyTrackExceptionHandler());
 			
 			while (true){
 				wifiManager.startScan();
@@ -529,7 +556,6 @@ public class BTService extends Service{
 
 		@Override
 		protected Void doInBackground(Void... params) {
-			Thread.setDefaultUncaughtExceptionHandler(new BodyTrackExceptionHandler());
 			
 			while (true){
 				for (int i = 0; i < NUM_LOGGERS; i++){
@@ -594,7 +620,6 @@ public class BTService extends Service{
 	private class UploaderTask extends AsyncTask<Void, Void, Void> {
 		//TODO: clean this up!
 	     protected Void doInBackground(Void... params) {	
-	    	 Thread.setDefaultUncaughtExceptionHandler(new BodyTrackExceptionHandler());
 	    	//upload gps data
 	    	 
 	    	
@@ -602,53 +627,63 @@ public class BTService extends Service{
 			
 			while (true){
 				
-				//upload gps data
-				if (prefAdapter.isNetworkEnabled())
-					dbAdapter.uploadLocations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
-	    	 
-	 			
-	 			//upload accelerometer data
-				if (prefAdapter.isNetworkEnabled())
-					dbAdapter.uploadAccelerations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+				NetworkInfo curNetwork = conMan.getActiveNetworkInfo();
 				
-				//upload gyroscope data
-				if (prefAdapter.isNetworkEnabled())
-					dbAdapter.uploadGyros(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+				if (curNetwork != null && curNetwork.isConnected()){
 				
-				//upload orientation data
-				if (prefAdapter.isNetworkEnabled())
-					dbAdapter.uploadOrientations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
-				
-				//upload light data
-				if (prefAdapter.isNetworkEnabled())
-					dbAdapter.uploadIlluminances(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
-				
-				//upload temperature data
-				if (prefAdapter.isNetworkEnabled())
-					dbAdapter.uploadTemperatures(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
-	 			
-	 			//upload wifi accesspoint data
-				if (prefAdapter.isNetworkEnabled())
-					dbAdapter.uploadWifis(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
-				
-	 			//upload 1 picture
-				if (prefAdapter.isNetworkEnabled()){
-		 			Cursor c = dbAdapter.fetchFirstPendingUploadPic();
-					if (c.moveToFirst()){
-						long id = c.getLong(c.getColumnIndex(DbAdapter.PIX_KEY_ID));
-						c.close();
-						dbAdapter.uploadPhoto(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName(), CameraReview.activeInstance, id);
+					//upload gps data
+					if (prefAdapter.isNetworkEnabled())
+						dbAdapter.uploadLocations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+		    	 
+		 			
+		 			//upload accelerometer data
+					if (prefAdapter.isNetworkEnabled())
+						dbAdapter.uploadAccelerations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+					
+					//upload gyroscope data
+					if (prefAdapter.isNetworkEnabled())
+						dbAdapter.uploadGyros(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+					
+					//upload orientation data
+					if (prefAdapter.isNetworkEnabled())
+						dbAdapter.uploadOrientations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+					
+					//upload light data
+					if (prefAdapter.isNetworkEnabled())
+						dbAdapter.uploadIlluminances(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+					
+					//upload temperature data
+					if (prefAdapter.isNetworkEnabled())
+						dbAdapter.uploadTemperatures(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+		 			
+		 			//upload wifi accesspoint data
+					if (prefAdapter.isNetworkEnabled())
+						dbAdapter.uploadWifis(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+					
+		 			//upload 1 picture
+					if (prefAdapter.isNetworkEnabled()){
+			 			Cursor c = dbAdapter.fetchFirstPendingUploadPic();
+						if (c.moveToFirst()){
+							long id = c.getLong(c.getColumnIndex(DbAdapter.PIX_KEY_ID));
+							c.close();
+							dbAdapter.uploadPhoto(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName(), CameraReview.activeInstance, id);
+						}
+						else {
+							c.close();
+						}
 					}
-					else {
-						c.close();
+					//sleep a bit in case thread is eating too much cpu
+					try {
+						Thread.sleep(1);
+					} catch (InterruptedException e) {
 					}
 				}
-				//sleep
-				try {
-					Thread.sleep(1);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+				else{ //sleep 5 seconds if no network is present
+					try{
+						Thread.sleep(5000);
+					} catch (InterruptedException e){
+						
+					}
 				}
 			}
 	     }

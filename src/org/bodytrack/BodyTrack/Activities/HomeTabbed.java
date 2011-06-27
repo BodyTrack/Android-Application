@@ -101,6 +101,10 @@ public class HomeTabbed extends TabActivity {
 	    	.setContent(intent);
 	    tabHost.addTab(spec);
 	    
+	    intent = new Intent().setClass(this, Stats.class);
+	    spec = tabHost.newTabSpec("stats").setIndicator("Stats").setContent(intent);
+	    tabHost.addTab(spec);
+	    
 	    AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setCancelable(false)
             .setTitle(R.string.pref_config)

@@ -92,4 +92,5 @@
   	<string name="stopOrnt">Stop Orientation Tracking</string>
   	<string name="startGPS">Start GPS Tracking</string>
   	<string name="stopGPS">Stop GPS Tracking</string>
+  	<string name="console">Console:</string>
 </resources>
