@@ -22,6 +22,7 @@ import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
+import org.bodytrack.BodyTrack.BTStatisticTracker;
 import org.bodytrack.BodyTrack.BodyTrackExceptionHandler;
 import org.bodytrack.BodyTrack.DbAdapter;
 import org.bodytrack.BodyTrack.PreferencesAdapter;
@@ -70,9 +71,13 @@ public class HomeTabbed extends TabActivity {
 	private boolean uploading = false;
 	
 	private WifiManager wifiManager;
+	
+	private BTStatisticTracker btStats;
 
 	public void onCreate(Bundle savedInstanceState) {
 		wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+		
+		btStats = BTStatisticTracker.getInstance();
 		
 	    super.onCreate(savedInstanceState);
 	    setContentView(R.layout.tabbed_home);
@@ -122,13 +127,9 @@ public class HomeTabbed extends TabActivity {
         if (!prefAdapter.prefsAreGood()){
         	prefConfigDialog.setMessage(getString(R.string.pref_need_config));
         	prefConfigDialog.show();
-        }	    
-	    try {
-			new File(getFilesDir().getAbsolutePath() + "/test.txt").createNewFile();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+        }
+        
+        dbAdapter.getSize();
 	}
 
 		

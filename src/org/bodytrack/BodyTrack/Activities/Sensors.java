@@ -5,6 +5,7 @@ package org.bodytrack.BodyTrack.Activities;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 
+import org.bodytrack.BodyTrack.BTStatisticTracker;
 import org.bodytrack.BodyTrack.DbAdapter;
 import org.bodytrack.BodyTrack.BTService;
 import org.bodytrack.BodyTrack.IBTSvcRPC;
@@ -28,10 +29,13 @@ import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.SeekBar;
+import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class Sensors extends Activity implements OnClickListener{
+public class Sensors extends Activity implements OnClickListener, OnSeekBarChangeListener{
 	//This is the manager that gets instantiated inside the on create method.
 	
 	private IBTSvcRPC btBinder;
@@ -40,13 +44,21 @@ public class Sensors extends Activity implements OnClickListener{
 	
 	private Button toggleAcc, toggleGyro, toggleWifi, toggleLight, toggleTemp, toggleOrnt, toggleGPS;
 	
-	private TextView outputArea;
+	private TextView freqSetting;
+	
+	private LinearLayout gpsSettingsPane;
+	
+	private SeekBar freqSeekBar;
+	
+	private BTStatisticTracker btStats;
 	
 	
 	public void onCreate(Bundle savedInstanceState){
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.sensors);
 		dbAdapter = DbAdapter.getDbAdapter(getApplicationContext());
+		
+		btStats = BTStatisticTracker.getInstance();
 		
 		toggleAcc = (Button)findViewById(R.id.toggleAcc);
 		toggleGyro = (Button)findViewById(R.id.toggleGyro);
@@ -70,6 +82,12 @@ public class Sensors extends Activity implements OnClickListener{
 		toggleTemp.setOnClickListener(this);
 		toggleOrnt.setOnClickListener(this);
 		toggleGPS.setOnClickListener(this);
+		
+		freqSeekBar = (SeekBar)findViewById(R.id.gpsFreqChanger);
+		freqSeekBar.setOnSeekBarChangeListener(this);
+		freqSetting = (TextView)findViewById(R.id.freqDisplay);
+		
+		gpsSettingsPane = (LinearLayout)findViewById(R.id.gpsSettingsPane);
 		
 		Context ctx = getApplicationContext();
     	Intent intent = new Intent(ctx, BTService.class);
@@ -175,10 +193,12 @@ public class Sensors extends Activity implements OnClickListener{
 				if (btBinder.isLogging(BTService.GPS_LOGGING)){
 					btBinder.stopLogging(BTService.GPS_LOGGING);
 					toggleGPS.setText(R.string.startGPS);
+					gpsSettingsPane.setVisibility(View.GONE);
 				}
 				else{
 					btBinder.startLogging(BTService.GPS_LOGGING);
 					toggleGPS.setText(R.string.stopGPS);
+					gpsSettingsPane.setVisibility(View.VISIBLE);
 				}
 			} catch (RemoteException e) {
 				// TODO Auto-generated catch block
@@ -206,17 +226,6 @@ public class Sensors extends Activity implements OnClickListener{
     };
     
     protected void updateButtons(){
-    	/*if (btBinder == null){
-    		if (toggleAcc != null)
-    			toggleAcc.setEnabled(false);
-    		if (toggleGyro != null)
-    			toggleGyro.setEnabled(false);
-    		if (toggleWifi != null)
-    			toggleWifi.setEnabled(false);
-    		if (toggleLight != null)
-    			toggleLight.set
-			return;
-    	}*/
     	try{
 			toggleAcc.setText(btBinder.isLogging(BTService.ACC_LOGGING) ? R.string.stop_acc : R.string.start_acc);
 			toggleGyro.setText(btBinder.isLogging(BTService.GYRO_LOGGING) ? R.string.stopGyro : R.string.startGyro);
@@ -225,6 +234,7 @@ public class Sensors extends Activity implements OnClickListener{
 			toggleTemp.setText(btBinder.isLogging(BTService.TEMP_LOGGING) ? R.string.stopTemp : R.string.startTemp);
 			toggleOrnt.setText(btBinder.isLogging(BTService.ORNT_LOGGING) ? R.string.stopOrnt : R.string.startOrnt);
 			toggleGPS.setText(btBinder.isLogging(BTService.GPS_LOGGING) ? R.string.stopGPS : R.string.startGPS);
+			gpsSettingsPane.setVisibility(btBinder.isLogging(BTService.GPS_LOGGING) ? View.VISIBLE : View.GONE);
 			
 			toggleAcc.setEnabled(btBinder.canLog(BTService.ACC_LOGGING));
 			toggleGyro.setEnabled(btBinder.canLog(BTService.GYRO_LOGGING));
@@ -233,14 +243,45 @@ public class Sensors extends Activity implements OnClickListener{
 			toggleTemp.setEnabled(btBinder.canLog(BTService.TEMP_LOGGING));
 			toggleOrnt.setEnabled(btBinder.canLog(BTService.ORNT_LOGGING));
 			toggleGPS.setEnabled(btBinder.canLog(BTService.GPS_LOGGING));
+			
+			int index = btBinder.getGPSDelayIndex();
+			freqSeekBar.setProgress(index);
+			updateFreqDisplay(index);
     	}
     	catch (Exception e){}
+    }
+    
+    private void updateFreqDisplay(int index){
+    	freqSetting.setText(getString(R.string.Frequency) + BTService.getGPSDelayName(index));
     }
 
 
 	protected void serviceBound(IBTSvcRPC binder) {
 		btBinder = binder;
 		updateButtons();
+	}
+	
+	
+	@Override
+	public void onProgressChanged(SeekBar seekBar, int progress,
+			boolean fromUser) {
+		updateFreqDisplay(progress);
+	}
+
+
+	@Override
+	public void onStartTrackingTouch(SeekBar seekBar) {
+	}
+
+
+	@Override
+	public void onStopTrackingTouch(SeekBar seekBar) {
+		try {
+			btBinder.setGPSDelay(freqSeekBar.getProgress());
+			btStats.out.println("Updated GPS delay to: " + BTService.getGPSDelayName(freqSeekBar.getProgress()));
+		} catch (RemoteException e) {
+			btStats.out.println("Failed to update GPS delay");
+		}
 	}
 	
 }

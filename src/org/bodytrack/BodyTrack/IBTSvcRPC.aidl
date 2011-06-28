@@ -8,4 +8,6 @@ interface IBTSvcRPC {
 	void stopLogging(int id);
 	boolean isLogging(int id);
 	boolean canLog(int id);
+	void setGPSDelay(int index);
+	int getGPSDelayIndex();
 }

@@ -16,6 +16,7 @@ import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.bodytrack.BodyTrack.BTStatisticTracker;
 import org.bodytrack.BodyTrack.DbAdapter;
 import org.bodytrack.BodyTrack.PreferencesAdapter;
 import org.bodytrack.BodyTrack.R;
@@ -86,9 +87,13 @@ public class CameraReview extends Activity {
 	
 	private Uri imageUri;
 	
+	private BTStatisticTracker btStats;
+	
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.camera_review);
+		
+		btStats = BTStatisticTracker.getInstance();
 		
 		activeInstance = this;
 		
@@ -251,6 +256,7 @@ public class CameraReview extends Activity {
         
         switch(requestCode) {
 	        case ACTIVITY_NEW_PICTURE:
+	        	btStats.out.println("Camera Activity finished with result: " + resultCode);
 	        	if (resultCode == RESULT_OK){
 	        		try {
 	        			File tempFile = convertImageUriToFile(imageUri,this);
@@ -275,7 +281,7 @@ public class CameraReview extends Activity {
 		        			uploadPhotos(id);
 		        		}
 					} catch (Exception e){
-						
+						btStats.out.println("Exception occured trying to obtain photo: " + e);
 					}
 	        		
 	        		

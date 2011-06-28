@@ -1,5 +1,6 @@
 package org.bodytrack.BodyTrack;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
@@ -12,11 +13,16 @@ public class BodyTrackExceptionHandler implements UncaughtExceptionHandler {
 
 	private UncaughtExceptionHandler oldHandler = Thread.getDefaultUncaughtExceptionHandler();
 	
+	private static final String folder = "/BodyTrack/Crashes";
+	
 	@Override
 	public void uncaughtException(Thread thread, Throwable ex) {
 		try {
 			long timestamp = System.currentTimeMillis();
-			FileOutputStream fos = new FileOutputStream(Environment.getExternalStorageDirectory().getAbsolutePath() + "/bodytrack_crash_" + timestamp + ".txt");
+			File f = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + folder);
+			f.mkdirs();
+			f = new File(f.getAbsolutePath() + "/log_" + timestamp + ".txt");
+			FileOutputStream fos = new FileOutputStream(f);
 			PrintStream out = new PrintStream(fos);
 			out.println("Thread source: " + thread);
 			out.println("Timestamp: " + timestamp);
@@ -29,7 +35,10 @@ public class BodyTrackExceptionHandler implements UncaughtExceptionHandler {
 			out.println("Time spent uploading data: " + (btStats.getTimeSpentUploadingData() / 1000.0));
 			out.println("Time spent deleting data: " + (btStats.getTimeSpentDeletingData() / 1000.0));
 			out.println("Total uptime: " + (btStats.getTotalUptime() / 1000.0));
-			out.println("Console:");
+			out.println("Database Writes: " + btStats.getDbWrites());
+			out.println("Data uploaded: " + btStats.getTotalDataBytes());
+			out.println("Overhead uploaded: " + btStats.getTotalOverheadBytes());
+			out.println("Recent Console Output:");
 			out.println(btStats.getConsoleText());
 			out.close();
 		} catch (FileNotFoundException e) {

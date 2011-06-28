@@ -29,6 +29,7 @@ import android.view.KeyEvent;
 
 public class PreferencesAdapter {
 	public static final int INVALID_USER_ID = -1;
+	public static final int DEFAULT_GPS_DELAY = 100;
 	public static final String INVALID_USER_NAME = "NO_USER_NAME";
 	public static final String INVALID_PASSWORD = "NO_PASSWORD";
 	public static final String loginAddress = "http://bodytrack.org/login.json";
@@ -50,6 +51,21 @@ public class PreferencesAdapter {
 			id = INVALID_USER_ID;
 		}
 		return id < 0 ? INVALID_USER_ID : id;
+	}
+	
+	public int getGPSDelay(){
+		int index;
+		try{
+			index = prefs.getInt("gpsDelay", DEFAULT_GPS_DELAY);
+		}
+		catch (Exception e){
+			index = DEFAULT_GPS_DELAY;
+		}
+		return index;
+	}
+	
+	public void setGPSDelay(int index){
+		prefs.edit().putInt("gpsDelay", index).commit();
 	}
 	
 	public String getUploadAddress(){

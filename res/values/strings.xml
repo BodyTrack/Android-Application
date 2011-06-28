@@ -93,4 +93,9 @@
   	<string name="startGPS">Start GPS Tracking</string>
   	<string name="stopGPS">Stop GPS Tracking</string>
   	<string name="console">Console:</string>
+  	<string name="Frequency">GPS Update Rate: </string>
+  	<string name="blank">     </string>
+  	<string name="scrollStart">Scroll to Start</string>
+  	<string name="scrollEnd">Scroll to End</string>
+  	<string name="refreshStats">Refresh</string>
 </resources>

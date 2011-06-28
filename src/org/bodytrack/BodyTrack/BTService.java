@@ -57,8 +57,44 @@ public class BTService extends Service{
 	public static final String TAG = "BTService";
 	
 	
-	private final long minTime = 1000 * 20;
 	private final long minDistance = 0;
+	
+	private int gpsDelay;
+	
+	private static long getGPSDelayValue(int index){
+		if (index == 100)
+			return 0;
+		else{
+			int x = index + 1;
+			return (long) (358989.9125 * Math.pow(x, -1.662568759));
+		}
+		
+	}
+	
+	public static String getGPSDelayName(int index){
+		if (index == 100)
+			return "max";
+		else{
+			double value = 1000000.0 / getGPSDelayValue(index);
+			return ((long) value) + " mHz";
+		}
+	}
+	
+	private void setGPSDelay(int index){
+		if (gpsDelay != index){
+			gpsDelay = index;
+			prefAdapter.setGPSDelay(index);
+			if (isLogging(GPS_LOGGING)){
+				locMan.removeUpdates(locListen);
+				locMan.requestLocationUpdates(LocationManager.GPS_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
+				locMan.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
+			}
+		}
+	}
+	
+	private int getGPSDelayIndex(){
+		return gpsDelay;
+	}
 	
 	
 	
@@ -118,6 +154,7 @@ public class BTService extends Service{
     	}
     	
     	btStats = BTStatisticTracker.getInstance();
+    	btStats.out.println("BTService Started");
 				
 		/*Get an instance of the location manager*/
 		locMan = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -142,6 +179,8 @@ public class BTService extends Service{
 	    }
 	    
 	    prefAdapter = new PreferencesAdapter(this);
+	    
+	    gpsDelay = prefAdapter.getGPSDelay();
 	    
 	    dbUpdaterTask = new DbDataWriter();
 	    dbUpdaterTask.execute();
@@ -180,8 +219,13 @@ public class BTService extends Service{
 	public void onDestroy() {
 	    // Make sure our notification is gone.
 	    stopForegroundCompat(NOTIFICATION);
-	    
+	    btStats.out.println("BTService Destroyed!");
 		super.onDestroy();
+	}
+	
+	public void onLowMemory(){
+		btStats.out.println("System low on memory!");
+		super.onLowMemory();
 	}
 
 	@Override
@@ -194,12 +238,9 @@ public class BTService extends Service{
 			return;
 		switch (id){
 			case GPS_LOGGING:
-		    	Log.v(TAG, "Starting GPS logging");
-		    	
-				/*Register the location listener with the location manager*/
 				if (!isLogging[id]) {
-					locMan.requestLocationUpdates(LocationManager.GPS_PROVIDER, minTime, minDistance, locListen);
-					locMan.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, minTime, minDistance, locListen);
+					locMan.requestLocationUpdates(LocationManager.GPS_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
+					locMan.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
 				}
 				break;
 			case ACC_LOGGING:
@@ -248,8 +289,6 @@ public class BTService extends Service{
 	private void stopLogging(int id) {
 		switch (id){
 			case GPS_LOGGING:
-				Log.v(TAG, "Stopping GPS logging");
-				/*Stop getting location updates*/
 				if (isLogging[id]) {
 					locMan.removeUpdates(locListen);
 				}
@@ -614,6 +653,16 @@ public class BTService extends Service{
 		@Override
 		public boolean canLog(int id) throws RemoteException {
 			return BTService.this.canLog(id);
+		}
+
+		@Override
+		public void setGPSDelay(int index) throws RemoteException {
+			BTService.this.setGPSDelay(index);
+		}
+
+		@Override
+		public int getGPSDelayIndex() throws RemoteException {
+			return BTService.this.getGPSDelayIndex();
 		}
 	};
 	

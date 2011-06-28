@@ -7,8 +7,8 @@
                 <CheckBoxPreference android:key="networkEnabled" android:title="@string/title_network_toggle" android:summary="@string/sumary_network_toggle" android:defaultValue="true"></CheckBoxPreference>
 	</PreferenceCategory>
 	<PreferenceCategory android:title="@string/photo_prefs">
-		<CheckBoxPreference android:key="photoAutodelete" android:title="@string/title_photo_autodelete" android:summary="@string/sumary_photo_autodelete" android:defaultValue="false"></CheckBoxPreference>
-		<CheckBoxPreference android:defaultValue="false" android:key="photoAutoupload" android:title="@string/title_photo_autoupload" android:summary="@string/sumary_photo_autoupload"></CheckBoxPreference>
+		<CheckBoxPreference android:key="photoAutodelete" android:title="@string/title_photo_autodelete" android:summary="@string/sumary_photo_autodelete" android:defaultValue="true"></CheckBoxPreference>
+		<CheckBoxPreference android:key="photoAutoupload" android:title="@string/title_photo_autoupload" android:summary="@string/sumary_photo_autoupload" android:defaultValue="true"></CheckBoxPreference>
 		<CheckBoxPreference android:summary="@string/sumary_upload_photos_bg" android:title="@string/upload_photos_bg_title" android:key="photoUploadBG" android:defaultValue="true"></CheckBoxPreference>
 	</PreferenceCategory>
 	

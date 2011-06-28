@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.StatusLine;
@@ -28,6 +29,7 @@ import org.bodytrack.BodyTrack.Activities.HomeTabbed;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.w3c.dom.Entity;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -224,6 +226,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_LOC_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
+		btStats.addDbWrite();
 		return retVal;
 	}
 	
@@ -253,6 +256,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_ACC_TABLE, null, accToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
+		btStats.addDbWrite();
 		return retVal;
 	}
 	
@@ -282,6 +286,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_WIFI_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
+		btStats.addDbWrite();
 		return retVal;
 	}
 	
@@ -311,6 +316,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_GYRO_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
+		btStats.addDbWrite();
 		return retVal;
 	}
 	
@@ -340,6 +346,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_ORNT_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
+		btStats.addDbWrite();
 		return retVal;
 	}
 	
@@ -368,6 +375,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_LIGHT_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
+		btStats.addDbWrite();
 		return retVal;
 	}
 	
@@ -396,6 +404,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_TEMP_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
+		btStats.addDbWrite();
 		return retVal;
 	}
     
@@ -503,8 +512,22 @@ public class DbAdapter {
 		ContentValues codeToPut = new ContentValues();
 		codeToPut.put(BC_KEY_BARCODE, barcode);
 		codeToPut.put(BC_KEY_TIME, System.currentTimeMillis());
-
+		
+		btStats.addDbWrite();
+		
 		return mDb.insert(BARCODE_TABLE, null, codeToPut);
+	}
+	
+	public long getSize(){
+		Cursor c = mDb.rawQuery("pragma page_size;", null);
+		c.moveToFirst();
+		long size = c.getLong(0);
+		c.close();
+		c = mDb.rawQuery("pragma page_count;", null);
+		c.moveToFirst();
+		size *= c.getLong(0);
+		c.close();
+		return size;
 	}
 	
 	public long writePicture(byte[] picture) throws IOException {
@@ -527,6 +550,7 @@ public class DbAdapter {
 		picToPut.put(PIX_KEY_TIME, System.currentTimeMillis());
 		picToPut.put(PIX_KEY_UPLOAD_STATE, 0);
 		long result = mDb.insert(PIX_TABLE, null, picToPut);
+		btStats.addDbWrite();
 		if (result == 0){
 			mCtx.deleteFile(picFileName);
 		}
@@ -781,9 +805,8 @@ public class DbAdapter {
 		    }
 		    
 		    fis.close();
-		    
-		    byte[] imageData = bos.toByteArray();
-			ByteArrayBody bin = new ByteArrayBody(imageData, "image/jpeg", picFileName);
+		    byte[] photoData = bos.toByteArray();
+			ByteArrayBody bin = new ByteArrayBody(photoData, "image/jpeg", picFileName);
 			MultipartEntity reqEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
 			reqEntity.addPart("device_id",new StringBody(macAdd));
 			reqEntity.addPart("device_class",new StringBody(android.os.Build.MODEL));
@@ -796,7 +819,9 @@ public class DbAdapter {
 			postToServer.setEntity(reqEntity);
 			HttpResponse response = mHttpClient.execute(postToServer);
 			StatusLine status = response.getStatusLine();
-			btStats.logBytesUploaded(imageData.length, status.getStatusCode());
+			long bytes = photoData.length;
+			long overhead = reqEntity.getContentLength() - bytes;
+			btStats.logBytesUploaded(bytes, overhead, status.getStatusCode());
 			if (status.getStatusCode() >= 200 && status.getStatusCode() < 300){
 				setPictureUploadState(id,DbAdapter.PIC_UPLOADED);
 				if (camRev != null){
@@ -849,23 +874,42 @@ public class DbAdapter {
 	
 	private boolean uploadData(String uploadAdd, String macAdd, String devNickName, String channels, String channelSpecs, String data){
 		long start = System.currentTimeMillis();
-		try {    		
-    		MultipartEntity reqEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
-    		reqEntity.addPart("device_id", new StringBody(macAdd));
-    		reqEntity.addPart("timezone", new StringBody("UTC"));
-    		reqEntity.addPart("device_class", new StringBody(android.os.Build.MODEL));
-    		reqEntity.addPart("dev_nickname", new StringBody(devNickName));
-    		reqEntity.addPart("channel_names", new StringBody(channels));
-	    	if (channelSpecs != null){
-	    		reqEntity.addPart("channel_specs",new StringBody(channelSpecs));
-	    	}
-	    	reqEntity.addPart("data", new StringBody(data));
+		try {
+			HttpEntity reqEntity = null;
+			if (data.length() > 1024 * 5){ //multipart seems to be preferable in majority of situations
+	    		MultipartEntity mPartEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
+	    		mPartEntity.addPart("device_id", new StringBody(macAdd));
+	    		mPartEntity.addPart("timezone", new StringBody("UTC"));
+	    		mPartEntity.addPart("device_class", new StringBody(android.os.Build.MODEL));
+	    		mPartEntity.addPart("dev_nickname", new StringBody(devNickName));
+	    		mPartEntity.addPart("channel_names", new StringBody(channels));
+		    	if (channelSpecs != null){
+		    		mPartEntity.addPart("channel_specs",new StringBody(channelSpecs));
+		    	}
+		    	mPartEntity.addPart("data", new StringBody(data));
+		    	reqEntity = mPartEntity;
+			}
+			else{
+				List<NameValuePair> postParams = new LinkedList<NameValuePair>();
+				postParams.add(new BasicNameValuePair("device_id",macAdd));
+				postParams.add(new BasicNameValuePair("timezone","UTC"));
+				postParams.add(new BasicNameValuePair("device_class",android.os.Build.MODEL));
+				postParams.add(new BasicNameValuePair("dev_nickname", devNickName));
+				postParams.add(new BasicNameValuePair("channel_names", channels));
+				if (channelSpecs != null){
+					postParams.add(new BasicNameValuePair("channel_specs", channelSpecs));
+				}
+				postParams.add(new BasicNameValuePair("data", data));
+				reqEntity = new UrlEncodedFormEntity(postParams);
+			}
 	    	HttpClient mHttpClient = new DefaultHttpClient();
 	    	HttpPost postToServer = new HttpPost(uploadAdd);
     		postToServer.setEntity(reqEntity);
     		HttpResponse response = mHttpClient.execute(postToServer);
     		int statusCode = response.getStatusLine().getStatusCode();
-    		btStats.logBytesUploaded(data.length(), statusCode);
+    		long bytes = data.length();
+    		long overhead = reqEntity.getContentLength() - bytes;
+    		btStats.logBytesUploaded(bytes, overhead, statusCode);
     		if (statusCode >= 200 && statusCode < 300){
 	    		return true;
     		}

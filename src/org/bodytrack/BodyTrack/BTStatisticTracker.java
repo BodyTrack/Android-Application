@@ -1,12 +1,21 @@
 package org.bodytrack.BodyTrack;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.text.DecimalFormat;
+import java.util.Date;
+
+import android.os.Environment;
+import android.text.format.DateFormat;
 
 public class BTStatisticTracker {
+	private static final String folder = "/BodyTrack/Logs";
 	
-	public static int MAX_LOG_SIZE = 5242880; //approx 5 MB
+	public static int MAX_LOG_SIZE = 1048576; //1 MB
 	
 	private static BTStatisticTracker instance = null;
 	
@@ -21,8 +30,13 @@ public class BTStatisticTracker {
 	private long timeSpentGatheringAndJoining = 0;
 	private long timeSpentUploadingData = 0;
 	private long timeSpentDeletingDBData = 0;
+	private long totalDataBytes = 0;
+	private long totalOverheadBytes = 0;
+	private long dbWrites = 0;
 	private long start = 0;
 	private StringBuffer consoleText = new StringBuffer();
+	
+	private PrintStream fOut = new LogPrintStream();
 	
 	public PrintStream out = new PrintStream(new OutputStream(){
 		
@@ -39,10 +53,37 @@ public class BTStatisticTracker {
 			}
 		}
 		
-	});
+	}){
+		private boolean needStamp = true;
+		
+		private String getTimeStamp(){
+			Date curDate = new Date();
+			return "[" + tFormat.format(curDate.getHours()) + ":" + tFormat.format(curDate.getMinutes()) + ":" + tFormat.format(curDate.getSeconds()) + "]";
+		}
+		
+		public void print(String text){
+			if (needStamp){
+				text = getTimeStamp() + text;
+				needStamp = false;
+			}
+			fOut.print(text);
+			super.print(text);
+		}
+		
+		public void println(String text){
+			print(text);
+			println();
+		}
+		
+		public void println(){
+			super.println();
+			needStamp = true;
+		}
+	};
 	
 	private BTStatisticTracker(){
 		start = System.currentTimeMillis();
+		out.println("BodyTrack Application Started");
 	}
 	
 	public void addTimeSpentConvertingToJSON(long time){
@@ -65,7 +106,18 @@ public class BTStatisticTracker {
 		timeSpentDeletingDBData += time;
 	}
 	
-	public void logBytesUploaded(int bytes, int statusCode){
+	public void addOverheadBytes(long bytes){
+		totalOverheadBytes += bytes;
+	}
+	
+	public void addDataBytes(long bytes){
+		totalDataBytes += bytes;
+	}
+	
+	public void logBytesUploaded(long data, long overhead, int statusCode){
+		addDataBytes(data);
+		addOverheadBytes(overhead);
+		long bytes = data + overhead;
 		String prefix = "";
 		
 		if (bytes >= 1048576){
@@ -78,6 +130,10 @@ public class BTStatisticTracker {
 		}
 		
 		out.println("Uploaded " + bytes + " " + prefix + "B with response: " + statusCode);
+	}
+	
+	public void addDbWrite(){
+		dbWrites++;
 	}
 	
 	public long getTimeSpentConvertingToJSON(){
@@ -104,8 +160,74 @@ public class BTStatisticTracker {
 		return System.currentTimeMillis() - start;
 	}
 	
+	public long getTotalDataBytes(){
+		return totalDataBytes;
+	}
+	
+	public long getTotalOverheadBytes(){
+		return totalOverheadBytes;
+	}
+	
+	public long getDbWrites(){
+		return dbWrites;
+	}
 	
 	public String getConsoleText(){
 		return consoleText.toString();
+	}
+	
+	private class LogPrintStream extends PrintStream{
+		
+		private Date lastDate;
+
+		private LogPrintStream(OutputStream out) {
+			super(out);
+		}
+		
+		public LogPrintStream(){
+			this(getLogOutputStream());
+			lastDate = new Date();
+		}
+		
+		private boolean checkForNeedNewFile(){
+			Date curDate = new Date();
+			if (checkError() || curDate.getDay() != lastDate.getDay() || curDate.getMonth() != lastDate.getMonth() ||
+					curDate.getYear() != lastDate.getYear()){
+				close();
+				fOut = new LogPrintStream();
+				return true;
+			}
+			else{
+				return false;
+			}
+		}
+		
+		public void print(String text){
+			if (checkForNeedNewFile())
+				fOut.print(text);
+			else
+				super.print(text);
+		}
+	}
+	
+	private static DecimalFormat tFormat = new DecimalFormat("00");
+	
+	private static OutputStream getLogOutputStream(){
+		File f = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + folder);
+		f.mkdirs();
+		Date curDate = new Date();
+		f = new File(f.getAbsolutePath() + "/" + "log_" + curDate.getYear() + tFormat.format(curDate.getMonth()) + tFormat.format(curDate.getDay()) + ".txt");
+		try {
+			return new FileOutputStream(f, true);
+		} catch (FileNotFoundException e) {
+			return new OutputStream(){
+
+				@Override
+				public void write(int oneByte) throws IOException {
+					
+				}
+				
+			};
+		}
 	}
 }

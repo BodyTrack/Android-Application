@@ -101,7 +101,7 @@ public class BarcodeReview extends ListActivity {
         Cursor c = dbAdapter.fetchAllBarcodes();
         startManagingCursor(c);
 
-        String[] from = new String[] { dbAdapter.BC_KEY_BARCODE };
+        String[] from = new String[] { DbAdapter.BC_KEY_BARCODE };
         int[] to = new int[] { android.R.id.text1 };
         
         // Now create an array adapter and set it to display using our row
