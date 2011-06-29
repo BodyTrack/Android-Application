@@ -1,7 +1,6 @@
 package org.bodytrack.BodyTrack.Activities;
 
 import org.bodytrack.BodyTrack.R;
-import org.bodytrack.BodyTrack.R.xml;
 
 import android.os.Bundle;
 import android.preference.PreferenceActivity;

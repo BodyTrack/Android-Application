@@ -2,9 +2,6 @@ package org.bodytrack.BodyTrack.Activities;
 
 import org.bodytrack.BodyTrack.DbAdapter;
 import org.bodytrack.BodyTrack.R;
-import org.bodytrack.BodyTrack.R.id;
-import org.bodytrack.BodyTrack.R.layout;
-import org.bodytrack.BodyTrack.R.string;
 
 import android.app.AlertDialog;
 import android.app.ListActivity;

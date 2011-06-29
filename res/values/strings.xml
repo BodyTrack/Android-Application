@@ -98,4 +98,5 @@
   	<string name="scrollStart">Scroll to Start</string>
   	<string name="scrollEnd">Scroll to End</string>
   	<string name="refreshStats">Refresh</string>
+  	<string name="network_force_disabled">Could not authenticate with server. Networking has been disabled. Please check username, password, and network connectivity before reenabling network use.</string>
 </resources>

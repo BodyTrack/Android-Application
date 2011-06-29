@@ -2,10 +2,6 @@ package org.bodytrack.BodyTrack.Activities;
 
 
 
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-
-import org.bodytrack.BodyTrack.BTStatisticTracker;
 import org.bodytrack.BodyTrack.DbAdapter;
 import org.bodytrack.BodyTrack.BTService;
 import org.bodytrack.BodyTrack.IBTSvcRPC;
@@ -16,26 +12,19 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.database.Cursor;
-import android.hardware.Sensor;
-import android.hardware.SensorManager;
-import android.location.Location;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.IBinder;
 import android.os.RemoteException;
-import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.SeekBar;
-import android.widget.SeekBar.OnSeekBarChangeListener;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.widget.Spinner;
 
-public class Sensors extends Activity implements OnClickListener, OnSeekBarChangeListener{
+public class Sensors extends Activity implements OnClickListener, OnItemSelectedListener{
 	//This is the manager that gets instantiated inside the on create method.
 	
 	private IBTSvcRPC btBinder;
@@ -44,21 +33,15 @@ public class Sensors extends Activity implements OnClickListener, OnSeekBarChang
 	
 	private Button toggleAcc, toggleGyro, toggleWifi, toggleLight, toggleTemp, toggleOrnt, toggleGPS;
 	
-	private TextView freqSetting;
-	
 	private LinearLayout gpsSettingsPane;
 	
-	private SeekBar freqSeekBar;
-	
-	private BTStatisticTracker btStats;
+	private Spinner gpsUpdateRatePicker;
 	
 	
 	public void onCreate(Bundle savedInstanceState){
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.sensors);
 		dbAdapter = DbAdapter.getDbAdapter(getApplicationContext());
-		
-		btStats = BTStatisticTracker.getInstance();
 		
 		toggleAcc = (Button)findViewById(R.id.toggleAcc);
 		toggleGyro = (Button)findViewById(R.id.toggleGyro);
@@ -83,9 +66,13 @@ public class Sensors extends Activity implements OnClickListener, OnSeekBarChang
 		toggleOrnt.setOnClickListener(this);
 		toggleGPS.setOnClickListener(this);
 		
-		freqSeekBar = (SeekBar)findViewById(R.id.gpsFreqChanger);
-		freqSeekBar.setOnSeekBarChangeListener(this);
-		freqSetting = (TextView)findViewById(R.id.freqDisplay);
+		gpsUpdateRatePicker = (Spinner)findViewById(R.id.GPSRatePicker);
+		
+		ArrayAdapter<String> adapter = new ArrayAdapter<String>(getApplicationContext(), android.R.layout.simple_spinner_item, BTService.getAllGpsDelayNames());
+		adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+		gpsUpdateRatePicker.setAdapter(adapter);
+		
+		gpsUpdateRatePicker.setOnItemSelectedListener(this);
 		
 		gpsSettingsPane = (LinearLayout)findViewById(R.id.gpsSettingsPane);
 		
@@ -244,15 +231,9 @@ public class Sensors extends Activity implements OnClickListener, OnSeekBarChang
 			toggleOrnt.setEnabled(btBinder.canLog(BTService.ORNT_LOGGING));
 			toggleGPS.setEnabled(btBinder.canLog(BTService.GPS_LOGGING));
 			
-			int index = btBinder.getGPSDelayIndex();
-			freqSeekBar.setProgress(index);
-			updateFreqDisplay(index);
+			gpsUpdateRatePicker.setSelection(btBinder.getGPSDelayIndex());
     	}
     	catch (Exception e){}
-    }
-    
-    private void updateFreqDisplay(int index){
-    	freqSetting.setText(getString(R.string.Frequency) + BTService.getGPSDelayName(index));
     }
 
 
@@ -260,28 +241,22 @@ public class Sensors extends Activity implements OnClickListener, OnSeekBarChang
 		btBinder = binder;
 		updateButtons();
 	}
-	
-	
-	@Override
-	public void onProgressChanged(SeekBar seekBar, int progress,
-			boolean fromUser) {
-		updateFreqDisplay(progress);
-	}
 
 
 	@Override
-	public void onStartTrackingTouch(SeekBar seekBar) {
-	}
-
-
-	@Override
-	public void onStopTrackingTouch(SeekBar seekBar) {
+	public void onItemSelected(AdapterView<?> parent, View view, int pos,
+			long id) {
 		try {
-			btBinder.setGPSDelay(freqSeekBar.getProgress());
-			btStats.out.println("Updated GPS delay to: " + BTService.getGPSDelayName(freqSeekBar.getProgress()));
+			btBinder.setGPSDelay(pos);
 		} catch (RemoteException e) {
-			btStats.out.println("Failed to update GPS delay");
-		}
+		}		
+	}
+
+
+	@Override
+	public void onNothingSelected(AdapterView<?> parent) {
+		// TODO Auto-generated method stub
+		
 	}
 	
 }

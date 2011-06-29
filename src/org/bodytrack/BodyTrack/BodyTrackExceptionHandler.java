@@ -6,7 +6,6 @@ import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.lang.Thread.UncaughtExceptionHandler;
 
-import android.content.Context;
 import android.os.Environment;
 
 public class BodyTrackExceptionHandler implements UncaughtExceptionHandler {

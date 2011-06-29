@@ -3,10 +3,8 @@ package org.bodytrack.BodyTrack;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -25,11 +23,9 @@ import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.bodytrack.BodyTrack.Activities.CameraReview;
-import org.bodytrack.BodyTrack.Activities.HomeTabbed;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.w3c.dom.Entity;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -38,9 +34,7 @@ import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.location.Location;
-import android.net.wifi.WifiInfo;
 import android.os.Environment;
-import android.util.Log;
 
 /**
  * This class wraps database operations.

@@ -6,17 +6,8 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.EntityUtils;
 import org.bodytrack.BodyTrack.Activities.CameraReview;
 import org.bodytrack.BodyTrack.Activities.HomeTabbed;
-import org.json.JSONObject;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -45,6 +36,7 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.RemoteException;
 import android.util.Log;
+import android.widget.Toast;
 
 
 /** 
@@ -61,22 +53,32 @@ public class BTService extends Service{
 	
 	private int gpsDelay;
 	
+	private final static long[] gpsDelays = {0,1000,5000,10000,20000,30000,60000,120000,300000,600000,900000,1200000,1800000,3600000};
+	
+	private final static String[] gpsDelayNames = {"Realtime","Every Second","Every 5 Seconds","Every 10 Seconds", "Every 20 Seconds",
+									"Every 30 Seconds", "Every Minute", "Every 2 Minutes", "Every 5 Minutes", "Every 10 Minutes",
+									"Every 15 minutes", "Every 20 Minutes", "Every Half Hour", "Every Hour"};
+	
+	public static String[] getAllGpsDelayNames(){
+		return gpsDelayNames.clone();
+	}
+	
+	
 	private static long getGPSDelayValue(int index){
-		if (index == 100)
-			return 0;
-		else{
-			int x = index + 1;
-			return (long) (358989.9125 * Math.pow(x, -1.662568759));
+		try{
+			return gpsDelays[index];
 		}
-		
+		catch (ArrayIndexOutOfBoundsException e){
+			return gpsDelays[0];
+		}
 	}
 	
 	public static String getGPSDelayName(int index){
-		if (index == 100)
-			return "max";
-		else{
-			double value = 1000000.0 / getGPSDelayValue(index);
-			return ((long) value) + " mHz";
+		try{
+			return gpsDelayNames[index];
+		}
+		catch (ArrayIndexOutOfBoundsException e){
+			return gpsDelayNames[0];
 		}
 	}
 	
@@ -89,6 +91,10 @@ public class BTService extends Service{
 				locMan.requestLocationUpdates(LocationManager.GPS_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
 				locMan.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
 			}
+			btStats.out.println("Updated gps refresh to " + getGPSDelayName(index));
+		}
+		else{
+			btStats.out.println("GPS refresh unchanged");
 		}
 	}
 	
@@ -370,9 +376,9 @@ public class BTService extends Service{
 		return false;
 	}
 	
-	private static final Class[] mStartForegroundSignature = new Class[] {
+	private static final Class<?>[] mStartForegroundSignature = new Class[] {
 	    int.class, Notification.class};
-	private static final Class[] mStopForegroundSignature = new Class[] {
+	private static final Class<?>[] mStopForegroundSignature = new Class[] {
 	    boolean.class};
 
 	/**
@@ -562,14 +568,21 @@ public class BTService extends Service{
 	private BroadcastReceiver wifiReceiver = new BroadcastReceiver(){
 
 		public void onReceive(Context context, Intent intent) {
-			if (isLogging[WIFI_LOGGING]){
-				List<ScanResult> results = wifiManager.getScanResults();
-				long resultTime = System.currentTimeMillis();
-				
-				for (ScanResult result : results){
-					queueWifi(resultTime, result.SSID, result.BSSID);
-					resultTime++;
+			try{
+				if (isLogging[WIFI_LOGGING]){
+					List<ScanResult> results = wifiManager.getScanResults();
+					long resultTime = System.currentTimeMillis();
+					
+					for (ScanResult result : results){
+						queueWifi(resultTime, result.SSID, result.BSSID);
+						resultTime++;
+					}
 				}
+			}
+			catch (Exception e){
+				Toast.makeText(BTService.this, "Exception occured in wifiReceiver.onReceive. exception logged.", Toast.LENGTH_SHORT).show();
+				btStats.out.println("Exception in wifiReceiver.onReceive:");
+				e.printStackTrace(btStats.out);
 			}
 		}
 		

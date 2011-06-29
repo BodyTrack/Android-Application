@@ -3,19 +3,9 @@ package org.bodytrack.BodyTrack.Activities;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.mime.HttpMultipartMode;
-import org.apache.http.entity.mime.MultipartEntity;
-import org.apache.http.entity.mime.content.ByteArrayBody;
-import org.apache.http.entity.mime.content.StringBody;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.bodytrack.BodyTrack.BTStatisticTracker;
 import org.bodytrack.BodyTrack.DbAdapter;
 import org.bodytrack.BodyTrack.PreferencesAdapter;
@@ -37,7 +27,6 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.provider.MediaStore;
 import android.view.ContextMenu;
 import android.view.KeyEvent;
@@ -301,9 +290,9 @@ public class CameraReview extends Activity {
 		            null,       // WHERE clause selection arguments (none)
 		            null); // Order-by clause (ascending by name)
 		    int file_ColumnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
-		    int orientation_ColumnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.ORIENTATION);
+		    //int orientation_ColumnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.ORIENTATION);
 		    if (cursor.moveToFirst()) {
-		        String orientation =  cursor.getString(orientation_ColumnIndex);
+		        //String orientation =  cursor.getString(orientation_ColumnIndex);
 		        return new File(cursor.getString(file_ColumnIndex));
 		    }
 		    return null;
@@ -477,8 +466,6 @@ public class CameraReview extends Activity {
 		
 	     protected Long doInBackground(Long... ids) {
 	    	totalToUpload = ids.length;
-	    	HttpClient mHttpClient = new DefaultHttpClient();
-			HttpPost postToServer = new HttpPost(prefAdapter.getUploadAddress());
 			WifiManager wifiManager = (WifiManager) CameraReview.this.getSystemService(Context.WIFI_SERVICE);
 			WifiInfo address = wifiManager.getConnectionInfo();
 			for (int i = 0; i < totalToUpload; i++) {

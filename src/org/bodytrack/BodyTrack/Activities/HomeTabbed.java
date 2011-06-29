@@ -1,55 +1,22 @@
 package org.bodytrack.BodyTrack.Activities;
 
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
-
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.StatusLine;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.mime.HttpMultipartMode;
-import org.apache.http.entity.mime.MultipartEntity;
-import org.apache.http.entity.mime.content.ByteArrayBody;
-import org.apache.http.entity.mime.content.StringBody;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.message.BasicNameValuePair;
 import org.bodytrack.BodyTrack.BTStatisticTracker;
 import org.bodytrack.BodyTrack.BodyTrackExceptionHandler;
 import org.bodytrack.BodyTrack.DbAdapter;
 import org.bodytrack.BodyTrack.PreferencesAdapter;
 import org.bodytrack.BodyTrack.R;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import android.app.AlertDialog;
 import android.app.TabActivity;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.database.Cursor;
-import android.location.Location;
-import android.net.wifi.ScanResult;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
-import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.widget.TabHost;
+import android.widget.Toast;
 
 /**
  * This class defines a tabbed UI that allows the user to see the app's main
@@ -60,22 +27,12 @@ public class HomeTabbed extends TabActivity {
 	public static final String TAG = "HomeTabbed";
 	public static final int ACTIVITY_PREFERENCES = 1;
 	
-	private static final long MAX_DATA_UPLOAD = 1000; //maximum data points to upload at a time.
-	private static final long UPLOAD_RATE = 1; //milliseconds between upload checks
-	
 	private PreferencesAdapter prefAdapter;
 	private AlertDialog prefConfigDialog;
-	
-	private Menu mMenu;
-	
-	private boolean uploading = false;
-	
-	private WifiManager wifiManager;
 	
 	private BTStatisticTracker btStats;
 
 	public void onCreate(Bundle savedInstanceState) {
-		wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 		
 		btStats = BTStatisticTracker.getInstance();
 		
@@ -136,7 +93,6 @@ public class HomeTabbed extends TabActivity {
 	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		mMenu = menu;
 		MenuInflater inflater = getMenuInflater();
 		inflater.inflate(R.menu.menu, menu);
 		return true;
@@ -165,10 +121,28 @@ public class HomeTabbed extends TabActivity {
         
     }
 	
-	public void onUserIDUpdated(){
-		if (!prefAdapter.prefsAreGood()){
-    		prefConfigDialog.setMessage(getString(R.string.pref_invalid));
-    		prefConfigDialog.show();
-    	}
+	public void onUserIDUpdated(boolean networkForceDisabled){
+		try{
+			if (networkForceDisabled){
+				 new AlertDialog.Builder(this)
+			        	.setCancelable(false)
+			            .setTitle(R.string.pref_config)
+			            .setMessage(R.string.network_force_disabled)
+			            .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+			                public void onClick(DialogInterface dialog, int id) {
+				                dialog.dismiss();
+			                }
+			            }).create().show();
+			}
+			else if (!prefAdapter.prefsAreGood()){
+	    		prefConfigDialog.setMessage(getString(R.string.pref_invalid));
+	    		prefConfigDialog.show();
+	    	}
+		}
+		catch (Exception e){
+			Toast.makeText(this, "Exception occured in onUserIDUpdated. exception logged.", Toast.LENGTH_SHORT).show();
+			btStats.out.println("Exception in onUserIDUpdated:");
+			e.printStackTrace(btStats.out);
+		}
 	}
 }

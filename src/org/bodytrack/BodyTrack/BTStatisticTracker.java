@@ -10,12 +10,12 @@ import java.text.DecimalFormat;
 import java.util.Date;
 
 import android.os.Environment;
-import android.text.format.DateFormat;
 
 public class BTStatisticTracker {
 	private static final String folder = "/BodyTrack/Logs";
 	
-	public static int MAX_LOG_SIZE = 1048576; //1 MB
+	public static int MAX_LOG_SIZE = 1024 * 100; //100 KB in ram at any given time
+												 //too much makes it laggy and don't feel like making obtaining it async
 	
 	private static BTStatisticTracker instance = null;
 	

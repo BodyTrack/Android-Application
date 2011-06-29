@@ -1,20 +1,16 @@
 package org.bodytrack.BodyTrack;
 
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-import org.bodytrack.BodyTrack.Activities.CameraReview;
 import org.bodytrack.BodyTrack.Activities.HomeTabbed;
 import org.json.JSONObject;
 
@@ -22,9 +18,9 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.KeyEvent;
 
 public class PreferencesAdapter {
@@ -34,11 +30,16 @@ public class PreferencesAdapter {
 	public static final String INVALID_PASSWORD = "NO_PASSWORD";
 	public static final String loginAddress = "http://bodytrack.org/login.json";
 	
+	private Context ctx;
+	
 	private ProgressDialog obtainingUserIDDialog;
 	
 	private SharedPreferences prefs;
 	
+	private BTStatisticTracker btStats = BTStatisticTracker.getInstance();
+	
 	public PreferencesAdapter(Context context){
+		ctx = context;
 		prefs = PreferenceManager.getDefaultSharedPreferences(context);
 	}
 	
@@ -84,6 +85,10 @@ public class PreferencesAdapter {
 		return prefs.getString("deviceNickName", "");
 	}
 	
+	public void setNickName(String nickname){
+		prefs.edit().putString("deviceNickName", nickname).commit();
+	}
+	
 	public boolean autoDeletePhotosEnabled(){
 		return prefs.getBoolean("photoAutodelete", false);
 	}
@@ -96,26 +101,41 @@ public class PreferencesAdapter {
 		return prefs.getBoolean("networkEnabled", true);
 	}
 	
+	public void setNetworkEnabled(boolean enabled){
+		prefs.edit().putBoolean("networkEnabled", enabled).commit();
+	}
+	
 	public boolean isPhotoBGUploadEnabled(){
 		return prefs.getBoolean("photoUploadBG", true);
 	}
 	
-	private boolean isNickNameValid(){
+	private void fixUpNickName(){
 		String nickname = getNickName();
+		StringBuffer processedNickName = new StringBuffer();
+		boolean nickChanged = false;
 		if (!nickname.equals(""))
 			for (int i = 0; i < nickname.length(); i++){
 				char curChar = nickname.charAt(i);
 				if (!((curChar >= 'a' && curChar <= 'z') || 
 						(curChar >= 'A' && curChar <= 'Z') || 
-						(curChar >= '0' || curChar <= '9') ||
-						curChar == '_'))
-						return false;
+						(curChar >= '0' && curChar <= '9') ||
+						curChar == '_')){
+					processedNickName.append('_');
+					nickChanged = true;
+				}
+				else
+					processedNickName.append(curChar);
 			}
-		return true;	
+		if (nickChanged){
+			setNickName(processedNickName.toString());
+			btStats.out.println("Nickname contained invalid characters; replaced with underscores.");
+		}
+		return;	
 	}
 	
 	public boolean prefsAreGood(){
-		return (!isNetworkEnabled() || getUserID() != PreferencesAdapter.INVALID_USER_ID) && isNickNameValid();
+		fixUpNickName();
+		return (!isNetworkEnabled() || getUserID() != PreferencesAdapter.INVALID_USER_ID);
 	}
 	
 	public void obtainUserID(HomeTabbed home){
@@ -136,6 +156,16 @@ public class PreferencesAdapter {
 		new UpdateUserIDTask().execute(home);
 	}
 	
+	private boolean hasWebAccess(){
+		try{
+			ConnectivityManager cm = (ConnectivityManager) ctx.getSystemService(Context.CONNECTIVITY_SERVICE);
+		 	return cm.getActiveNetworkInfo().isConnected();
+		}
+		catch (Exception e){
+			return false;
+		}
+	}
+	
 	private class UpdateUserIDTask extends AsyncTask<HomeTabbed, Void, Void> {
 
 		private HomeTabbed caller;
@@ -144,22 +174,29 @@ public class PreferencesAdapter {
 		protected Void doInBackground(HomeTabbed... objs) {
 			caller = objs[0];
 			int uid = INVALID_USER_ID;
-			if (isNetworkEnabled()){
-				try {
-					HttpClient mHttpClient = new DefaultHttpClient();
-					HttpPost postToServer = new HttpPost(loginAddress);
-					List<NameValuePair> postRequest = new ArrayList<NameValuePair>();
-			    	postRequest.add(new BasicNameValuePair("login", getUserName()));
-			    	postRequest.add(new BasicNameValuePair("password", getPassword()));
-					postToServer.setEntity(new UrlEncodedFormEntity(postRequest));
-					HttpResponse response = mHttpClient.execute(postToServer);
-					int statusCode = response.getStatusLine().getStatusCode();
-					if (statusCode >= 200 && statusCode < 300){
-						String text = EntityUtils.toString(response.getEntity());
-						JSONObject jObject = new JSONObject(text);
-						uid = Integer.parseInt(jObject.getString("user_id"));
+				if (isNetworkEnabled()){
+					if (hasWebAccess()){
+					try {
+						HttpClient mHttpClient = new DefaultHttpClient();
+						HttpPost postToServer = new HttpPost(loginAddress);
+						List<NameValuePair> postRequest = new ArrayList<NameValuePair>();
+				    	postRequest.add(new BasicNameValuePair("login", getUserName()));
+				    	postRequest.add(new BasicNameValuePair("password", getPassword()));
+						postToServer.setEntity(new UrlEncodedFormEntity(postRequest));
+						HttpResponse response = mHttpClient.execute(postToServer);
+						int statusCode = response.getStatusLine().getStatusCode();
+						if (statusCode >= 200 && statusCode < 300){
+							String text = EntityUtils.toString(response.getEntity());
+							JSONObject jObject = new JSONObject(text);
+							uid = Integer.parseInt(jObject.getString("user_id"));
+							btStats.out.println("Successfully obtained user_id: " + uid);
+						}
+					} catch (Exception e){
+						btStats.out.println("Failed to obtain user_id: " + e);
 					}
-				} catch (Exception e){
+				}
+				else{
+					btStats.out.println("Failed to obtain user_id: no web access found.");
 				}
 			}
 			prefs.edit().putInt("userID", uid).commit();
@@ -171,10 +208,15 @@ public class PreferencesAdapter {
 				obtainingUserIDDialog.dismiss();
 			}
 			catch (Exception e){
-				
+			}
+			boolean networkSwitchedOff = false;
+			if (isNetworkEnabled() && getUserID() == INVALID_USER_ID){
+				btStats.out.println("Disabling network access.");
+				setNetworkEnabled(false);
+				networkSwitchedOff = true;
 			}
 			obtainingUserIDDialog = null;
-			caller.onUserIDUpdated();
+			caller.onUserIDUpdated(networkSwitchedOff);
 		}
 		
 	}
