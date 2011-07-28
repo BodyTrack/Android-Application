@@ -2,4 +2,6 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 	<item android:id="@+id/prefs"
 		android:title="@string/prefs" />
+	<item android:id="@+id/stats" android:title="@string/stats"></item>
+	<item android:title="Load Website" android:id="@+id/website"></item>
 </menu>

@@ -1,15 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen 
-	xmlns:android="http://schemas.android.com/apk/res/android"><PreferenceCategory android:title="@string/netPrefs"><EditTextPreference
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"><PreferenceCategory android:title="@string/netPrefs"><EditTextPreference
                 android:key="userName" android:title="@string/title_user_name" android:summary="@string/sumary_user_name" android:dialogTitle="@string/dialog_title_user_name"/><EditTextPreference
-                android:key="password" android:password="true" android:summary="@string/sumary_password" android:dialogTitle="@string/dialog_title_password" android:title="@string/title_password"/><EditTextPreference android:key="deviceNickName" android:summary="@string/sumary_device_nickname" android:title="@string/title_device_nickname"></EditTextPreference>
+                android:key="password" android:summary="@string/sumary_password" android:dialogTitle="@string/dialog_title_password" android:title="@string/title_password" android:password="true"/><EditTextPreference android:key="deviceNickName" android:summary="@string/sumary_device_nickname" android:title="@string/title_device_nickname"></EditTextPreference>
                 
                 <CheckBoxPreference android:key="networkEnabled" android:title="@string/title_network_toggle" android:summary="@string/sumary_network_toggle" android:defaultValue="true"></CheckBoxPreference>
+                <CheckBoxPreference android:title="@string/onlyUseWifi" android:defaultValue="false" android:key="onlyUseWifi" android:summary="@string/onlyUseWifiSumary"></CheckBoxPreference>
+                <EditTextPreference android:summary="@string/accSvcRunning" android:defaultValue="www.bodytrack.org" android:key="serverHost" android:title="@string/serverHost"></EditTextPreference>
+                <EditTextPreference android:defaultValue="80" android:key="serverPort" android:summary="@string/serverPortSummary" android:title="@string/serverPort" android:numeric="integer"></EditTextPreference>
 	</PreferenceCategory>
-	<PreferenceCategory android:title="@string/photo_prefs">
-		<CheckBoxPreference android:key="photoAutodelete" android:title="@string/title_photo_autodelete" android:summary="@string/sumary_photo_autodelete" android:defaultValue="true"></CheckBoxPreference>
-		<CheckBoxPreference android:key="photoAutoupload" android:title="@string/title_photo_autoupload" android:summary="@string/sumary_photo_autoupload" android:defaultValue="true"></CheckBoxPreference>
-		<CheckBoxPreference android:summary="@string/sumary_upload_photos_bg" android:title="@string/upload_photos_bg_title" android:key="photoUploadBG" android:defaultValue="true"></CheckBoxPreference>
+	<PreferenceCategory android:title="@string/powerPrefs">
+		<CheckBoxPreference android:title="@string/turnOffTracking" android:defaultValue="false" android:key="turnOffTrackingOnLowBat" android:summary="@string/turnOffTrackingSummary"></CheckBoxPreference>
+		<CheckBoxPreference android:key="turnOffUploadingOnLowBat" android:defaultValue="false" android:title="@string/turnOffUploading" android:summary="@string/turnOffUploadingSummary"></CheckBoxPreference>
+		<CheckBoxPreference android:key="uploadOnlyOnExternalPower" android:defaultValue="false" android:summary="@string/uploadOnlyOnExternalPowerSummary" android:title="@string/uploadOnlyOnExternalPower" android:disableDependentsState="false"></CheckBoxPreference>
+		<CheckBoxPreference android:dependency="uploadOnlyOnExternalPower" android:key="uploadOnlyOnAC" android:summary="@string/uploadOnlyOnACSummary" android:title="@string/uploadOnlyOnAC"></CheckBoxPreference>
+	</PreferenceCategory>
+	<!--  <PreferenceCategory android:title="@string/photoPrefs">
+		<CheckBoxPreference android:title="@string/noCommentsOnPhotos" android:key="noCommentsOnPhotos" android:summary="@string/noCommentsOnPhotosSummary"></CheckBoxPreference>
+	</PreferenceCategory> -->
+	<PreferenceCategory android:title="@string/storagePrefs">
+		<CheckBoxPreference android:title="Store Sensor Data on External Storage" android:defaultValue="false" android:summary="saves sensor data to external storage device rather than internal memory." android:key="dbOnExternalStorage"></CheckBoxPreference>
 	</PreferenceCategory>
 	
 </PreferenceScreen>

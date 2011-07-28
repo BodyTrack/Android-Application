@@ -1,9 +1,11 @@
 package org.bodytrack.BodyTrack.Activities;
 
+import org.bodytrack.BodyTrack.PreferencesAdapter;
 import org.bodytrack.BodyTrack.R;
 
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
+import android.widget.Toast;
 
 /**
  * This class creates an activity to modify preferences.
@@ -20,6 +22,12 @@ public class BTPrefs extends PreferenceActivity {
 		
 		//Load preferences from XML
 		addPreferencesFromResource(R.xml.prefs);
+	}
+	
+	
+	protected void onDestroy(){
+		super.onDestroy();
+		PreferencesAdapter.getInstance(getApplicationContext()).onPreferencesChanged();
 	}
 
 }

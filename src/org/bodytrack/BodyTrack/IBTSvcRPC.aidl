@@ -8,6 +8,9 @@ interface IBTSvcRPC {
 	void stopLogging(int id);
 	boolean isLogging(int id);
 	boolean canLog(int id);
+	boolean canSplitAcc();
 	void setGPSDelay(int index);
 	int getGPSDelayIndex();
+	void setAccSplitting(boolean enabled);
+	boolean isSplittingAcc();
 }

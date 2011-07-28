@@ -25,7 +25,7 @@
    
     <!-- Camera values -->
   	<string name="tookPic">Picture stored</string>
-  	<string name="takePic">Take a new meal photo</string>
+  	<string name="takePic">Take a new photo</string>
   	<string name="photoInfo">This will be where photos/notes can be reviewed</string>
   	
   	<!--  Barcode values -->
@@ -74,29 +74,55 @@
   	<string name="title_photo_autoupload">Photo Autoupload</string>
   	<string name="sumary_photo_autoupload">Automatically upload photos after being taken.</string>
   	<string name="dump_gps">Dump Data to CSV</string>
-  	<string name="start_acc">Start Accelerometer Tracking</string>
+  	<string name="start_acc">Accelerometer Tracking</string>
   	<string name="stop_acc">Stop Accelerometer Tracking</string>
   	<string name="dump_acc">Dump data to CSV</string>
   	<string name="upload_photos_bg_title">Upload in Background</string>
   	<string name="sumary_upload_photos_bg">"Don't freeze up the UI while photos are being uploaded"</string>
   	<string name="title_device_nickname">Nickname</string>
   	<string name="sumary_device_nickname">Nickname that will be associated with data from this phone.</string>
-  	<string name="startGyro">Start Gyroscope Tracking</string><string name="stopGyro">Stop Gyroscope Tracking</string>
-  	<string name="startWifi">Start Wifi Tracking</string>
+  	<string name="startGyro">Gyroscope Tracking</string><string name="stopGyro">Stop Gyroscope Tracking</string>
+  	<string name="startWifi">Wifi Tracking</string>
   	<string name="stopWifi">Stop Wifi Tracking</string>
-  	<string name="startTemp">Start Temperature Tracking</string>
+  	<string name="startTemp">Temperature Tracking</string>
   	<string name="stopTemp">Stop Temperature Tracking</string>
-  	<string name="startLight">Start IlluminanceTracking</string>
+  	<string name="startLight">IlluminanceTracking</string>
   	<string name="stopLight">Stop IlluminanceTracking</string>
-  	<string name="startOrnt">Start Orientation Tracking</string>
+  	<string name="startOrnt">Orientation Tracking</string>
   	<string name="stopOrnt">Stop Orientation Tracking</string>
-  	<string name="startGPS">Start GPS Tracking</string>
+  	<string name="startGPS">GPS Tracking</string>
   	<string name="stopGPS">Stop GPS Tracking</string>
-  	<string name="console">Console:</string>
+  	<string name="console">Console (last 10KB):</string>
   	<string name="Frequency">GPS Update Rate: </string>
   	<string name="blank">     </string>
-  	<string name="scrollStart">Scroll to Start</string>
-  	<string name="scrollEnd">Scroll to End</string>
+  	<string name="scrollStart">^</string>
+  	<string name="scrollEnd">V</string>
   	<string name="refreshStats">Refresh</string>
   	<string name="network_force_disabled">Could not authenticate with server. Networking has been disabled. Please check username, password, and network connectivity before reenabling network use.</string>
+  	<string name="stats">Stats</string>
+  	<string name="enableAll">Enable All</string>
+  	<string name="disableAll">Disable All</string>
+  	<string name="genericTimeRemaining">0 s of backlog</string>
+  	<string name="rateNoChange">remaining constant</string>
+  	<string name="onlyUseWifi">Use WiFi Only</string>
+  	<string name="onlyUseWifiSumary">Only upload data when connected to a wifi network.</string>
+  	<string name="powerPrefs">Power Options</string>
+  	<string name="turnOffTracking">Disable Tracking on Low Battery</string>
+  	<string name="turnOffTrackingSummary">Turns off all tracking if the battery gets low.</string>
+  	<string name="turnOffUploading">Disable Uploading on Low Battery</string>
+  	<string name="turnOffUploadingSummary">Disables all uploading when the battery becomes low.</string>
+  	<string name="uploadOnlyOnExternalPower">Upload Only While Charging</string>
+  	<string name="uploadOnlyOnExternalPowerSummary">Only upload data to the server when an external power source is present.</string>
+  	<string name="uploadOnlyOnAC">Upload only on AC power</string>
+  	<string name="uploadOnlyOnACSummary">Only upload when connected to AC power (a wall outlet).</string>
+  	<string name="logComment">Log a Comment</string>
+  	<string name="photoPrefs">Photo Preferences</string>
+  	<string name="noCommentsOnPhotos">No Comments</string>
+  	<string name="noCommentsOnPhotosSummary">Never prompt me for comments for photos.</string>
+  	<string name="serverHost">Server Host</string>
+  	<string name="serverHostSummary">Hostname of the server to upload to</string>
+  	<string name="serverPort">Server Port</string>
+  	<string name="serverPortSummary">Server Port</string>
+  	<string name="splitAcc">Split Gravity From Linear Acceleration</string>
+  	<string name="storagePrefs">Storage Preferences</string>
 </resources>

@@ -14,7 +14,7 @@ import android.os.Environment;
 public class BTStatisticTracker {
 	private static final String folder = "/BodyTrack/Logs";
 	
-	public static int MAX_LOG_SIZE = 1024 * 100; //100 KB in ram at any given time
+	public static int MAX_LOG_SIZE = 1024 * 10; //10 KB in ram at any given time
 												 //too much makes it laggy and don't feel like making obtaining it async
 	
 	private static BTStatisticTracker instance = null;
@@ -117,7 +117,7 @@ public class BTStatisticTracker {
 	public void logBytesUploaded(long data, long overhead, int statusCode){
 		addDataBytes(data);
 		addOverheadBytes(overhead);
-		long bytes = data + overhead;
+		/*long bytes = data + overhead;
 		String prefix = "";
 		
 		if (bytes >= 1048576){
@@ -129,7 +129,7 @@ public class BTStatisticTracker {
 			prefix = "K";
 		}
 		
-		out.println("Uploaded " + bytes + " " + prefix + "B with response: " + statusCode);
+		out.println("Uploaded " + bytes + " " + prefix + "B with response: " + statusCode);*/
 	}
 	
 	public void addDbWrite(){
@@ -216,7 +216,7 @@ public class BTStatisticTracker {
 		File f = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + folder);
 		f.mkdirs();
 		Date curDate = new Date();
-		f = new File(f.getAbsolutePath() + "/" + "log_" + curDate.getYear() + tFormat.format(curDate.getMonth()) + tFormat.format(curDate.getDay()) + ".txt");
+		f = new File(f.getAbsolutePath() + "/" + "log_" + (curDate.getYear() + 1900) + tFormat.format(curDate.getMonth() + 1) + tFormat.format(curDate.getDate()) + ".txt");
 		try {
 			return new FileOutputStream(f, true);
 		} catch (FileNotFoundException e) {

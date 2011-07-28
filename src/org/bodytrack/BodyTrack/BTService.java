@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.bodytrack.BodyTrack.Activities.CameraReview;
 import org.bodytrack.BodyTrack.Activities.HomeTabbed;
 
 import android.app.Notification;
@@ -31,7 +30,9 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
+import android.os.BatteryManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.RemoteException;
@@ -44,20 +45,39 @@ import android.widget.Toast;
  * the phone to capture location data. It is controlled by the 
  * activity defined by GpsSvccontrol.java
  */
-public class BTService extends Service{
+public class BTService extends Service implements PreferencesChangeListener{
 	/*constants*/
 	public static final String TAG = "BTService";
 	
+	private static final int SENSOR_TYPE_GRAVITY = 9;
+	private static final int SENSOR_TYPE_LINEAR_ACCELERATION = 10;
 	
 	private final long minDistance = 0;
 	
 	private int gpsDelay;
+	
+	private boolean gpsIdleMode = false;
+	private boolean gpsNoFixSleepMode = false;
+	
+	private final static long GPS_MAX_FIX_TIME = 1000 * 20;
+	private final static long GPS_MIN_TIME_FOR_SLEEP = 1000 * 30;
+	
+	private boolean fixFound = false;
+	
+	private final static int SENSOR_DELAY = SensorManager.SENSOR_DELAY_NORMAL;
+	
+	private Handler gpsHandler;
+	
+	private boolean accSplitEnabled = false;
 	
 	private final static long[] gpsDelays = {0,1000,5000,10000,20000,30000,60000,120000,300000,600000,900000,1200000,1800000,3600000};
 	
 	private final static String[] gpsDelayNames = {"Realtime","Every Second","Every 5 Seconds","Every 10 Seconds", "Every 20 Seconds",
 									"Every 30 Seconds", "Every Minute", "Every 2 Minutes", "Every 5 Minutes", "Every 10 Minutes",
 									"Every 15 minutes", "Every 20 Minutes", "Every Half Hour", "Every Hour"};
+	
+	private boolean lowBattery = false;
+	private boolean noTrackLowMode = false;
 	
 	public static String[] getAllGpsDelayNames(){
 		return gpsDelayNames.clone();
@@ -82,19 +102,23 @@ public class BTService extends Service{
 		}
 	}
 	
+	public boolean canSplitAcc(){
+		return senseMan.getDefaultSensor(SENSOR_TYPE_GRAVITY) != null && senseMan.getDefaultSensor(SENSOR_TYPE_LINEAR_ACCELERATION) != null;
+	}
+	
 	private void setGPSDelay(int index){
 		if (gpsDelay != index){
 			gpsDelay = index;
 			prefAdapter.setGPSDelay(index);
 			if (isLogging(GPS_LOGGING)){
 				locMan.removeUpdates(locListen);
-				locMan.requestLocationUpdates(LocationManager.GPS_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
+				if (!gpsIdleMode){
+					locMan.requestLocationUpdates(LocationManager.GPS_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
+					invokeGPSSleepLogic();
+				}
 				locMan.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
 			}
 			btStats.out.println("Updated gps refresh to " + getGPSDelayName(index));
-		}
-		else{
-			btStats.out.println("GPS refresh unchanged");
 		}
 	}
 	
@@ -116,6 +140,7 @@ public class BTService extends Service{
 	
 	private WifiScanTask curWifiScanner;
 	private DbDataWriter dbUpdaterTask;
+	private WifiWatcher wWatcher;
 	
 	private boolean[] isLogging = new boolean[NUM_LOGGERS];
 	
@@ -139,6 +164,9 @@ public class BTService extends Service{
 	public static final int ORNT_LOGGING = 5;
 	public static final int LIGHT_LOGGING = 6;
 	
+	private static final int GRAVITY_ACC = NUM_LOGGERS;
+	private static final int LINEAR_ACC = NUM_LOGGERS + 1;
+	
 	private boolean foregroundEnabled = false;
 	
 	private String[] logNames = {"GPS", "Accelerometer", "Gyroscope", "WiFi", "Temperature",
@@ -148,14 +176,18 @@ public class BTService extends Service{
 	private List<List<Object[]>> dataLists = new ArrayList<List<Object[]>>();
 	
 	private PreferencesAdapter prefAdapter;
+	private boolean externalPowerPresent = false;
+	private boolean externalPowerIsAC = false;
 
 		
 	@Override
 	public void onCreate() {
+		wWatcher = new WifiWatcher();
+		gpsHandler = new Handler();
 		super.onCreate();
     	Log.v(TAG, "Starting GPS service");
     	
-    	for (int i = 0; i < NUM_LOGGERS; i++){
+    	for (int i = 0; i < NUM_LOGGERS + 2; i++){
     		dataLists.add(new LinkedList<Object[]>());
     	}
     	
@@ -184,12 +216,17 @@ public class BTService extends Service{
 	        mStartForeground = mStopForeground = null;
 	    }
 	    
-	    prefAdapter = new PreferencesAdapter(this);
+	    prefAdapter = PreferencesAdapter.getInstance(getApplicationContext());
+	    prefAdapter.addPreferencesChangeListener(this);
 	    
 	    gpsDelay = prefAdapter.getGPSDelay();
 	    
 	    dbUpdaterTask = new DbDataWriter();
 	    dbUpdaterTask.execute();
+	    
+	    registerReceiver(lowBatteryReceiver, new IntentFilter(Intent.ACTION_BATTERY_LOW));
+	    registerReceiver(batteryOkReceiver, new IntentFilter(Intent.ACTION_BATTERY_OKAY));
+	    registerReceiver(externalPowerReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
 	    
 	    new UploaderTask().execute();
 	}
@@ -223,6 +260,7 @@ public class BTService extends Service{
 	
 	@Override
 	public void onDestroy() {
+		prefAdapter.removePreferencesChangeListener(this);
 	    // Make sure our notification is gone.
 	    stopForegroundCompat(NOTIFICATION);
 	    btStats.out.println("BTService Destroyed!");
@@ -239,51 +277,68 @@ public class BTService extends Service{
 		return rpcBinder;
 	}
 	
-	private void startLogging(int id) {
-		if (!canLog(id))
-			return;
+	private void invokeGPSSleepLogic(){
+		haltGPSSleepLogic();
+		if (getGPSDelayValue(gpsDelay) >= GPS_MIN_TIME_FOR_SLEEP){
+			gpsHandler.postDelayed(gpsFixer, GPS_MAX_FIX_TIME);
+			btStats.out.println("gps fix stopper started!");
+		}
+		else{
+			btStats.out.println("gps delay too low for stopper!");
+		}
+	}
+	
+	private void haltGPSSleepLogic(){
+		gpsHandler.removeCallbacks(gpsFixer);
+		gpsHandler.removeCallbacks(gpsRestarter);
+		gpsNoFixSleepMode = false;
+		btStats.out.println("gps fix stopper halted!");
+	}
+	
+	private void startLoggingI(int id){
 		switch (id){
 			case GPS_LOGGING:
-				if (!isLogging[id]) {
+				if (!gpsIdleMode){
 					locMan.requestLocationUpdates(LocationManager.GPS_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
-					locMan.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
+					invokeGPSSleepLogic();
 				}
+				locMan.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, minDistance, locListen);
 				break;
 			case ACC_LOGGING:
-				if (!isLogging[id]) {
-					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) , SensorManager.SENSOR_DELAY_GAME);
+				if (!accSplitEnabled)
+					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) , SENSOR_DELAY);
+				else{
+					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_GRAVITY), SENSOR_DELAY);
+					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_LINEAR_ACCELERATION), SENSOR_DELAY);
 				}
 				break;
 			case GYRO_LOGGING:
-				if (!isLogging[id]){
-					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_GYROSCOPE), SensorManager.SENSOR_DELAY_GAME);
-				}
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_GYROSCOPE), SENSOR_DELAY);
 				break;
 			case WIFI_LOGGING:
-				if (!isLogging[id]){
-					registerReceiver(wifiReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-					curWifiScanner = new WifiScanTask();
-					curWifiScanner.execute();
-				}
+				registerReceiver(wifiReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+				curWifiScanner = new WifiScanTask();
+				curWifiScanner.execute();
 				break;
 			case ORNT_LOGGING:
-				if (!isLogging[id]){
-					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ORIENTATION), SensorManager.SENSOR_DELAY_GAME);
-				}
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ORIENTATION), SENSOR_DELAY);
 				break;
 			case LIGHT_LOGGING:
-				if (!isLogging[id]){
-					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_LIGHT), SensorManager.SENSOR_DELAY_GAME);
-				}
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_LIGHT), SENSOR_DELAY);
 				break;
 			case TEMP_LOGGING:
-				if (!isLogging[id]){
-					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_TEMPERATURE), SensorManager.SENSOR_DELAY_GAME);
-				}
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_TEMPERATURE), SENSOR_DELAY);
 				break;
 			default:
 				return;
 		}
+	}
+	
+	private void startLogging(int id) {
+		if (!canLog(id))
+			return;
+		if (!isLogging[id] && !noTrackLowMode)
+			startLoggingI(id);
 		btStats.out.println(logNames[id] + " tracking enabled");
 		isLogging[id] = true;
 		if (!foregroundEnabled && anyLogging()){
@@ -292,48 +347,50 @@ public class BTService extends Service{
 		
 	}
 	
-	private void stopLogging(int id) {
+	private void stopLoggingI(int id){
 		switch (id){
 			case GPS_LOGGING:
-				if (isLogging[id]) {
-					locMan.removeUpdates(locListen);
-				}
+				locMan.removeUpdates(locListen);
+				haltGPSSleepLogic();
 				break;
 			case ACC_LOGGING:
-				if (isLogging[id]) {
+				if (!accSplitEnabled)
 					senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER));
+				else{
+					senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_GRAVITY));
+					senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_LINEAR_ACCELERATION));
 				}
 				break;
 			case GYRO_LOGGING:
-				if (isLogging[id]) {
-					senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_GYROSCOPE));
-				}
+				senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_GYROSCOPE));
 				break;
 			case WIFI_LOGGING:
-				if (isLogging[id]){
-					curWifiScanner.cancel(true);
-					unregisterReceiver(wifiReceiver);
-					curWifiScanner = null;
+				curWifiScanner.cancel(true);
+				unregisterReceiver(wifiReceiver);
+				curWifiScanner = null;
+				if (gpsIdleMode && isLogging[GPS_LOGGING]){
+					locMan.requestLocationUpdates(LocationManager.GPS_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
 				}
+				wWatcher.clear();
+				gpsIdleMode = false;
 				break;
 			case ORNT_LOGGING:
-				if (isLogging[id]){
-					senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ORIENTATION));
-				}
+				senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ORIENTATION));
 				break;
 			case LIGHT_LOGGING:
-				if (isLogging[id]){
-					senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_LIGHT));
-				}
+				senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_LIGHT));
 				break;
 			case TEMP_LOGGING:
-				if (isLogging[id]){
-					senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_TEMPERATURE));
-				}
+				senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_TEMPERATURE));
 				break;
 			default:
 				return;
 		}
+	}
+	
+	private void stopLogging(int id) {
+		if (isLogging[id])
+			stopLoggingI(id);
 		btStats.out.println(logNames[id] + " tracking disabled");
 		isLogging[id] = false;
 		if (foregroundEnabled && !anyLogging()){
@@ -452,6 +509,24 @@ public class BTService extends Service{
 		dataLists.get(ACC_LOGGING).add(data);
 	}
 	
+	private void queueGravityAcceleration(long timestamp, float[] values){
+		Object[] data = new Object[4];
+		data[0] = timestamp;
+		for (int i = 0; i < 3; i++){
+			data[1+i] = values[i];
+		}
+		dataLists.get(GRAVITY_ACC).add(data);
+	}
+	
+	private void queueLinearAcceleration(long timestamp, float[] values){
+		Object[] data = new Object[4];
+		data[0] = timestamp;
+		for (int i = 0; i < 3; i++){
+			data[1+i] = values[i];
+		}
+		dataLists.get(LINEAR_ACC).add(data);
+	}
+	
 	private void queueGyroscope(long timestamp, float[] values){
 		Object[] data = new Object[4];
 		data[0] = timestamp;
@@ -461,11 +536,14 @@ public class BTService extends Service{
 		dataLists.get(GYRO_LOGGING).add(data);
 	}
 	
-	private void queueWifi(long timestamp, String ssid, String bssid){
-		Object[] data = new Object[3];
+	private void queueWifi(long timestamp, ScanResult result){
+		Object[] data = new Object[6];
 		data[0] = timestamp;
-		data[1] = ssid;
-		data[2] = bssid;
+		data[1] = result.SSID;
+		data[2] = result.BSSID;
+		data[3] = result.capabilities;
+		data[4] = result.frequency;
+		data[5] = result.level;
 		dataLists.get(WIFI_LOGGING).add(data);
 	}
 	
@@ -491,6 +569,29 @@ public class BTService extends Service{
 		}
 		dataLists.get(ORNT_LOGGING).add(data);
 	}
+	
+	public void setAccSplitting(boolean enabled){
+		if (!canSplitAcc()){
+			return;
+		}
+		accSplitEnabled = enabled;
+		if (isLogging[ACC_LOGGING]){
+			if (accSplitEnabled){
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_GRAVITY), SENSOR_DELAY);
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_LINEAR_ACCELERATION), SENSOR_DELAY);
+				senseMan.unregisterListener(sensorListener,senseMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER));
+			}
+			else{
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SENSOR_DELAY);
+				senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_GRAVITY));
+				senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_LINEAR_ACCELERATION));
+			}
+		}
+	}
+	
+	public boolean isSplittingAcc(){
+		return accSplitEnabled;
+	}
 
 
 
@@ -506,6 +607,10 @@ public class BTService extends Service{
 	private LocationListener locListen = new LocationListener(){
 
 		public void onLocationChanged(Location loc) {
+			if (loc.getProvider().equals(LocationManager.GPS_PROVIDER)){
+				btStats.out.println("Found a gps fix, restarting logic!");
+				invokeGPSSleepLogic();
+			}
 			queueLocation(loc);
 		}
 
@@ -559,8 +664,72 @@ public class BTService extends Service{
 						queueOrientation(System.currentTimeMillis(),event.values);
 					}
 					break;
+				case SENSOR_TYPE_GRAVITY:
+					if (isLogging[ACC_LOGGING]){
+						queueGravityAcceleration(System.currentTimeMillis(),event.values);
+					}
+					break;
+				case SENSOR_TYPE_LINEAR_ACCELERATION:
+					if (isLogging[ACC_LOGGING]){
+						queueLinearAcceleration(System.currentTimeMillis(),event.values);
+					}
 				default:
 			}
+		}
+		
+	};
+	
+	private BroadcastReceiver externalPowerReceiver = new BroadcastReceiver(){
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			int status = intent.getIntExtra("status", -1);
+			if (status != -1){
+				boolean oldConnected = externalPowerPresent;
+				externalPowerPresent = status != BatteryManager.BATTERY_STATUS_DISCHARGING;
+				if (oldConnected != externalPowerPresent)
+					btStats.out.println("External power " + (externalPowerPresent ? "connected" : "disconnected"));
+			}
+			int plugged = intent.getIntExtra("plugged", -1);
+			if (plugged != -1){
+				boolean oldAC = externalPowerIsAC;
+				externalPowerIsAC = plugged == BatteryManager.BATTERY_PLUGGED_AC;
+				if (oldAC != externalPowerIsAC)
+					btStats.out.println("AC power is " + (externalPowerIsAC ? "present" : "absent"));
+			}
+		}
+		
+	};
+	
+	private BroadcastReceiver lowBatteryReceiver = new BroadcastReceiver(){
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			lowBattery = true;
+			if (prefAdapter.noTrackingOnLowBat()){
+				noTrackLowMode = true;
+				btStats.out.println("Battery low! Turning off all tracking!");
+				for (int i = 0; i < NUM_LOGGERS; i++){
+					if (isLogging[i])
+						stopLoggingI(i);
+				}
+			}
+		}
+		
+	};
+	
+	private BroadcastReceiver batteryOkReceiver = new BroadcastReceiver(){
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			lowBattery = false;
+			if (noTrackLowMode){
+				btStats.out.println("Battery okay! Turning tracking back on!");
+				for (int i = 0; i < NUM_LOGGERS; i++)
+					if (isLogging[i])
+						startLoggingI(i);
+			}
+			noTrackLowMode = false;
 		}
 		
 	};
@@ -568,21 +737,38 @@ public class BTService extends Service{
 	private BroadcastReceiver wifiReceiver = new BroadcastReceiver(){
 
 		public void onReceive(Context context, Intent intent) {
-			try{
-				if (isLogging[WIFI_LOGGING]){
-					List<ScanResult> results = wifiManager.getScanResults();
+			if (isLogging[WIFI_LOGGING]){
+				List<ScanResult> results = wifiManager.getScanResults();
+				if (results != null){
 					long resultTime = System.currentTimeMillis();
 					
 					for (ScanResult result : results){
-						queueWifi(resultTime, result.SSID, result.BSSID);
+						queueWifi(resultTime, result);
 						resultTime++;
 					}
 				}
-			}
-			catch (Exception e){
-				Toast.makeText(BTService.this, "Exception occured in wifiReceiver.onReceive. exception logged.", Toast.LENGTH_SHORT).show();
-				btStats.out.println("Exception in wifiReceiver.onReceive:");
-				e.printStackTrace(btStats.out);
+				else{
+					results = new LinkedList<ScanResult>();
+				}
+				wWatcher.addScanResults(results);
+				if (gpsIdleMode != wWatcher.isIdlingNearAP()){
+					gpsIdleMode = wWatcher.isIdlingNearAP();
+					if (gpsIdleMode){
+						if (isLogging[GPS_LOGGING]){
+							locMan.removeUpdates(locListen);
+							haltGPSSleepLogic();
+							locMan.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, minDistance, locListen);
+						}
+						btStats.out.println("Idling near a wifi ap for longer than 5 minutes. Disabling GPS!");
+					}
+					else{
+						if (isLogging[GPS_LOGGING]){
+							locMan.requestLocationUpdates(LocationManager.GPS_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
+							invokeGPSSleepLogic();
+						}
+						btStats.out.println("No longer idling near a wifi ap. Enabling GPS!");
+					}
+				}
 			}
 		}
 		
@@ -610,32 +796,39 @@ public class BTService extends Service{
 		protected Void doInBackground(Void... params) {
 			
 			while (true){
-				for (int i = 0; i < NUM_LOGGERS; i++){
+				for (int i = 0; i < dataLists.size(); i++){
 					//grab list and insert empty one
 					List<Object[]> currentList = dataLists.get(i);
 					dataLists.set(i, new LinkedList<Object[]>());
+					Object[][] data = currentList.toArray(new Object[][]{});
 					//write data to database
 					switch (i){
 						case GPS_LOGGING:
-							dbAdapter.writeLocations(currentList);
+							dbAdapter.writeLocations(data);
 							break;
 						case ACC_LOGGING:
-							dbAdapter.writeAccelerations(currentList);
+							dbAdapter.writeAccelerations(data);
 							break;
 						case GYRO_LOGGING:
-							dbAdapter.writeGyros(currentList);
+							dbAdapter.writeGyros(data);
 							break;
 						case WIFI_LOGGING:
-							dbAdapter.writeWifis(currentList);
+							dbAdapter.writeWifis(data);
 							break;
 						case ORNT_LOGGING:
-							dbAdapter.writeOrientations(currentList);
+							dbAdapter.writeOrientations(data);
 							break;
 						case LIGHT_LOGGING:
-							dbAdapter.writeLights(currentList);
+							dbAdapter.writeLights(data);
 							break;
 						case TEMP_LOGGING:
-							dbAdapter.writeTemps(currentList);
+							dbAdapter.writeTemps(data);
+							break;
+						case GRAVITY_ACC:
+							dbAdapter.writeGravityAccelerations(data);
+							break;
+						case LINEAR_ACC:
+							dbAdapter.writeLinearAccelerations(data);
 							break;
 					}
 				}				
@@ -677,7 +870,41 @@ public class BTService extends Service{
 		public int getGPSDelayIndex() throws RemoteException {
 			return BTService.this.getGPSDelayIndex();
 		}
+
+		@Override
+		public boolean canSplitAcc() throws RemoteException {
+			return BTService.this.canSplitAcc();
+		}
+
+		@Override
+		public void setAccSplitting(boolean enabled) throws RemoteException {
+			BTService.this.setAccSplitting(enabled);
+		}
+
+		@Override
+		public boolean isSplittingAcc() throws RemoteException {
+			return BTService.this.isSplittingAcc();
+		}
 	};
+	
+	private long prevTimeOff = 0;
+	private long prevTime = 0;
+	
+	private boolean allowedToUpload(){
+		if (!prefAdapter.prefsAreGood())
+			return false;
+		if (!prefAdapter.isNetworkEnabled())
+			return false;
+		if (lowBattery && prefAdapter.noUploadingOnLowBat())
+			return false;
+		if (prefAdapter.uploadRequiresExternalPower()){
+			if (!externalPowerPresent)
+				return false;
+			if (prefAdapter.uploadRequiresACPower() && !externalPowerIsAC)
+				return false;
+		}
+		return true;
+	}
 	
 	private class UploaderTask extends AsyncTask<Void, Void, Void> {
 		//TODO: clean this up!
@@ -691,52 +918,64 @@ public class BTService extends Service{
 				
 				NetworkInfo curNetwork = conMan.getActiveNetworkInfo();
 				
-				if (curNetwork != null && curNetwork.isConnected()){
+				if (curNetwork != null && curNetwork.isConnected() && (!curNetwork.isRoaming() || prefAdapter.canUse3G()) && allowedToUpload()){
 				
 					//upload gps data
-					if (prefAdapter.isNetworkEnabled())
-						dbAdapter.uploadLocations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+					dbAdapter.uploadLocations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
 		    	 
 		 			
 		 			//upload accelerometer data
-					if (prefAdapter.isNetworkEnabled())
+					if (allowedToUpload())
 						dbAdapter.uploadAccelerations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
 					
 					//upload gyroscope data
-					if (prefAdapter.isNetworkEnabled())
+					if (allowedToUpload())
 						dbAdapter.uploadGyros(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
 					
 					//upload orientation data
-					if (prefAdapter.isNetworkEnabled())
+					if (allowedToUpload())
 						dbAdapter.uploadOrientations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
 					
 					//upload light data
-					if (prefAdapter.isNetworkEnabled())
+					if (allowedToUpload())
 						dbAdapter.uploadIlluminances(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
 					
 					//upload temperature data
-					if (prefAdapter.isNetworkEnabled())
+					if (allowedToUpload())
 						dbAdapter.uploadTemperatures(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
 		 			
 		 			//upload wifi accesspoint data
-					if (prefAdapter.isNetworkEnabled())
+					if (allowedToUpload())
 						dbAdapter.uploadWifis(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
 					
+					if (allowedToUpload())
+						dbAdapter.uploadBarcodes(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+					
 		 			//upload 1 picture
-					if (prefAdapter.isNetworkEnabled()){
+					if (allowedToUpload()){
 			 			Cursor c = dbAdapter.fetchFirstPendingUploadPic();
-						if (c.moveToFirst()){
-							long id = c.getLong(c.getColumnIndex(DbAdapter.PIX_KEY_ID));
-							c.close();
-							dbAdapter.uploadPhoto(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName(), CameraReview.activeInstance, id);
-						}
-						else {
-							c.close();
+			 			if (c != null){
+							if (c.moveToFirst()){
+								long id = c.getLong(c.getColumnIndex(DbAdapter.PIX_KEY_ID));
+								c.close();
+								dbAdapter.uploadPhoto(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName(), id);
+							}
+							else {
+								c.close();
+							}
+			 			}
+					}		
+					//upload 1 log comment
+					if (allowedToUpload()){
+						Cursor c = dbAdapter.fetchOldestComment();
+						if (c != null){
+							long id = c.getLong(c.getColumnIndex(DbAdapter.KEY_TIME));
+							dbAdapter.uploadComment(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName(), id);
 						}
 					}
 					//sleep a bit in case thread is eating too much cpu
 					try {
-						Thread.sleep(1);
+						Thread.sleep(1000);
 					} catch (InterruptedException e) {
 					}
 				}
@@ -747,8 +986,69 @@ public class BTService extends Service{
 						
 					}
 				}
+				long curTime = System.currentTimeMillis();
+				long timeOff = curTime - dbAdapter.getOldestTime();
+				HomeTabbed instance = HomeTabbed.instance;
+				if (instance != null){
+					double rate = 0;
+					if (prevTime != 0){
+						long timeDiff = curTime - prevTime;
+						long drain = timeOff - prevTimeOff;
+						rate = drain / (double) timeDiff;
+					}
+					instance.onLogRemainingChanged(timeOff, rate);
+					prevTimeOff = timeOff;
+					prevTime = curTime;
+				}
 			}
 	     }
 	 }
+	
+	private Runnable gpsFixer = new Runnable(){
+		public void run(){
+			if (!gpsNoFixSleepMode && isLogging[GPS_LOGGING] && !gpsIdleMode){
+				gpsNoFixSleepMode = true;
+				long restartdelay = getGPSDelayValue(gpsDelay) - GPS_MAX_FIX_TIME;
+				btStats.out.println("No GPS fix in " + GPS_MAX_FIX_TIME + " ms restarting in " + restartdelay + " ms.");
+				gpsHandler.postDelayed(gpsRestarter, restartdelay);
+				locMan.removeUpdates(locListen);
+				locMan.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
+			}
+		}
+	};
+	
+	private Runnable gpsRestarter = new Runnable(){
+		public void run(){
+			if (gpsNoFixSleepMode && isLogging[GPS_LOGGING] && !gpsIdleMode){
+				btStats.out.println("Restarting gps for new fix.");
+				locMan.requestLocationUpdates(LocationManager.GPS_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
+				invokeGPSSleepLogic();
+			}
+			gpsNoFixSleepMode = false;
+		}
+	};
+
+	@Override
+	public void onPreferencesChanged() {
+		if (prefAdapter.noTrackingOnLowBat()){
+			if (lowBattery && !noTrackLowMode){
+				noTrackLowMode = true;
+				btStats.out.println("TRacking disabled on low battery! Turning off all tracking!");
+				for (int i = 0; i < NUM_LOGGERS; i++){
+					if (isLogging[i])
+						stopLoggingI(i);
+				}
+			}
+		}
+		else{
+			if (noTrackLowMode){
+				noTrackLowMode = false;
+				btStats.out.println("Tracking allowed on low battery! Turning on all tracking!");
+				for (int i = 0; i < NUM_LOGGERS; i++)
+					if (isLogging[i])
+						startLoggingI(i);
+			}
+		}
+	}
 		
 }

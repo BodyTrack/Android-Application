@@ -5,34 +5,32 @@
     android:layout_height="fill_parent"
     >
     <LinearLayout android:layout_width="fill_parent" android:id="@+id/linearLayout4" android:baselineAligned="true" android:layout_height="fill_parent" android:layout_weight="2">
-        <LinearLayout android:id="@+id/linearLayout3" android:layout_height="wrap_content" android:orientation="vertical" android:layout_width="wrap_content" android:layout_weight="1">
-            <ScrollView android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/scrollView1">
-                <LinearLayout android:id="@+id/linearLayout6" android:layout_width="fill_parent" android:layout_height="fill_parent" android:orientation="vertical">
-                    <TextView android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:text="TextView" android:id="@+id/timeJSON" android:layout_width="wrap_content"></TextView>
-                    <TextView android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:text="TextView" android:id="@+id/timeInDB" android:layout_width="wrap_content"></TextView>
-                    <TextView android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:text="TextView" android:id="@+id/timeOutDB" android:layout_width="wrap_content"></TextView>
-                    <TextView android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:text="TextView" android:id="@+id/timeUpload" android:layout_width="wrap_content"></TextView>
-                    <TextView android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:text="TextView" android:id="@+id/timeDelete" android:layout_width="wrap_content"></TextView>
-                    <TextView android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:text="TextView" android:id="@+id/timeTotal" android:layout_width="wrap_content"></TextView>
-                    <TextView android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:text="TextView" android:id="@+id/dbSize"></TextView>
-                    <TextView android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:text="TextView" android:id="@+id/dbWrites"></TextView>
-                    <TextView android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:text="TextView" android:id="@+id/dataUp"></TextView>
-                    <TextView android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:text="TextView" android:id="@+id/overheadUp"></TextView>
-                </LinearLayout>
-            </ScrollView>
-            <LinearLayout android:layout_width="fill_parent" android:id="@+id/linearLayout2" android:layout_height="wrap_content">
+        <ScrollView android:id="@+id/scrollView1" android:layout_width="fill_parent" android:layout_height="fill_parent" android:layout_weight="1">
+            <LinearLayout android:orientation="vertical" android:id="@+id/linearLayout6" android:layout_height="fill_parent" android:layout_width="fill_parent">
+                <TextView android:layout_height="wrap_content" android:text="TextView" android:id="@+id/timeJSON" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium"></TextView>
+                <TextView android:layout_height="wrap_content" android:text="TextView" android:id="@+id/timeInDB" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium"></TextView>
+                <TextView android:layout_height="wrap_content" android:text="TextView" android:id="@+id/timeOutDB" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium"></TextView>
+                <TextView android:layout_height="wrap_content" android:text="TextView" android:id="@+id/timeUpload" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium"></TextView>
+                <TextView android:layout_height="wrap_content" android:text="TextView" android:id="@+id/timeDelete" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium"></TextView>
+                <TextView android:layout_height="wrap_content" android:text="TextView" android:id="@+id/timeTotal" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium"></TextView>
+                <TextView android:layout_height="wrap_content" android:text="TextView" android:id="@+id/dbSize" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium"></TextView>
+                <TextView android:layout_height="wrap_content" android:text="TextView" android:id="@+id/dbWrites" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium"></TextView>
+                <TextView android:layout_height="wrap_content" android:text="TextView" android:id="@+id/dataUp" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium"></TextView>
+                <TextView android:layout_height="wrap_content" android:text="TextView" android:id="@+id/overheadUp" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium"></TextView>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium" android:text="TextView" android:id="@+id/cpuUsage"></TextView>
             </LinearLayout>
-        </LinearLayout>
-        <LinearLayout android:id="@+id/linearLayout5" android:layout_height="wrap_content" android:orientation="vertical" android:layout_width="wrap_content" android:layout_weight="1">
-            <Button android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/scrollStart" android:text="@string/scrollStart"></Button>
-            <Button android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/scrollEnd" android:text="@string/scrollEnd"></Button>
-            <Button android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/refreshStats" android:text="@string/refreshStats"></Button>
+        </ScrollView>
+    </LinearLayout>
+    <TextView android:id="@+id/textView1" android:layout_width="fill_parent" android:gravity="bottom" android:layout_height="wrap_content" android:layout_weight="0" android:text="@string/console"></TextView>
+    <LinearLayout android:layout_height="fill_parent" android:id="@+id/linearLayout7" android:layout_weight="1." android:layout_width="fill_parent">
+        <ScrollView android:scrollbarAlwaysDrawVerticalTrack="true" android:layout_height="fill_parent" android:id="@+id/consoleScroller" android:layout_width="fill_parent" android:layout_weight="1" android:scrollbarStyle="insideInset">
+            <LinearLayout android:id="@+id/linearLayout1" android:layout_height="fill_parent" android:layout_width="fill_parent">
+                <TextView android:layout_height="wrap_content" android:text="TextView" android:id="@+id/consoleText" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall"></TextView>
+            </LinearLayout>
+        </ScrollView>
+        <LinearLayout android:layout_height="fill_parent" android:id="@+id/linearLayout8" android:layout_width="wrap_content" android:orientation="vertical">
+            <Button android:layout_height="wrap_content" android:id="@+id/scrollStart" android:layout_width="fill_parent" android:text="@string/scrollStart" android:layout_weight="1"></Button>
+            <Button android:layout_height="wrap_content" android:text="@string/scrollEnd" android:id="@+id/scrollEnd" android:layout_width="fill_parent" android:layout_weight="1"></Button>
         </LinearLayout>
     </LinearLayout>
-    <TextView android:layout_width="wrap_content" android:text="@string/console" android:id="@+id/textView1" android:layout_height="wrap_content"></TextView>
-    <ScrollView android:layout_height="fill_parent" android:layout_width="fill_parent" android:id="@+id/consoleScroller" android:layout_weight="1">
-        <LinearLayout android:id="@+id/linearLayout1" android:layout_width="fill_parent" android:layout_height="fill_parent">
-            <TextView android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:layout_height="wrap_content" android:text="TextView" android:id="@+id/consoleText"></TextView>
-        </LinearLayout>
-    </ScrollView>
 </LinearLayout>

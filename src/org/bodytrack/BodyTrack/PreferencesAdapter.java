@@ -1,5 +1,7 @@
 package org.bodytrack.BodyTrack;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,12 +25,11 @@ import android.os.AsyncTask;
 import android.preference.PreferenceManager;
 import android.view.KeyEvent;
 
-public class PreferencesAdapter {
+public class PreferencesAdapter implements PreferencesChangeListener {
 	public static final int INVALID_USER_ID = -1;
-	public static final int DEFAULT_GPS_DELAY = 100;
+	public static final int DEFAULT_GPS_DELAY = 0;
 	public static final String INVALID_USER_NAME = "NO_USER_NAME";
 	public static final String INVALID_PASSWORD = "NO_PASSWORD";
-	public static final String loginAddress = "http://bodytrack.org/login.json";
 	
 	private Context ctx;
 	
@@ -38,7 +39,17 @@ public class PreferencesAdapter {
 	
 	private BTStatisticTracker btStats = BTStatisticTracker.getInstance();
 	
-	public PreferencesAdapter(Context context){
+	private static PreferencesAdapter instance = null;
+	
+	private List<PreferencesChangeListener> listeners = new ArrayList<PreferencesChangeListener>();
+	
+	public static PreferencesAdapter getInstance(Context context){
+		if (instance == null)
+			instance = new PreferencesAdapter(context);
+		return instance;
+	}
+	
+	private PreferencesAdapter(Context context){
 		ctx = context;
 		prefs = PreferenceManager.getDefaultSharedPreferences(context);
 	}
@@ -69,8 +80,17 @@ public class PreferencesAdapter {
 		prefs.edit().putInt("gpsDelay", index).commit();
 	}
 	
+	public String getHost(){
+		try{
+			return prefs.getString("serverHost", "www.bodytrack.org") + ":" + Integer.parseInt(prefs.getString("serverPort", "80"));
+		}
+		catch (Exception e){
+			return "www.bodytrack.org";
+		}
+	}
+	
 	public String getUploadAddress(){
-		return "http://bodytrack.org/users/" + getUserID() + "/upload";
+		return "http://" + getHost() + "/users/" + getUserID() + "/upload";
 	}
 	
 	public String getUserName(){
@@ -89,14 +109,6 @@ public class PreferencesAdapter {
 		prefs.edit().putString("deviceNickName", nickname).commit();
 	}
 	
-	public boolean autoDeletePhotosEnabled(){
-		return prefs.getBoolean("photoAutodelete", false);
-	}
-	
-	public boolean autoUploadPhotosEnabled(){
-		return prefs.getBoolean("photoAutoupload", false);
-	}
-	
 	public boolean isNetworkEnabled(){
 		return prefs.getBoolean("networkEnabled", true);
 	}
@@ -105,8 +117,37 @@ public class PreferencesAdapter {
 		prefs.edit().putBoolean("networkEnabled", enabled).commit();
 	}
 	
-	public boolean isPhotoBGUploadEnabled(){
-		return prefs.getBoolean("photoUploadBG", true);
+	public boolean canUse3G(){
+		return !prefs.getBoolean("onlyUseWifi", false);
+	}
+	
+	public boolean noTrackingOnLowBat(){
+		return prefs.getBoolean("turnOffTrackingOnLowBat", false);
+	}
+	
+	public boolean noUploadingOnLowBat(){
+		return prefs.getBoolean("turnOffUploadingOnLowBat", false);
+	}
+	
+	public boolean uploadRequiresExternalPower(){
+		return prefs.getBoolean("uploadOnlyOnExternalPower", false);
+	}
+	
+	public boolean uploadRequiresACPower(){
+		return prefs.getBoolean("uploadOnlyOnAC", false);
+	}
+	
+	public boolean dbStoredExternally(){
+		return prefs.getBoolean("dbOnExternalStorage", false);
+	}
+	
+	public void setDbStoredExternally(boolean external){
+		prefs.edit().putBoolean("dbOnExternalStorage", external).commit();
+	}
+	
+	public boolean noCommentsOnPhotos(){
+		//return prefs.getBoolean("noCommentsOnPhotos", false);
+		return true;
 	}
 	
 	private void fixUpNickName(){
@@ -139,20 +180,6 @@ public class PreferencesAdapter {
 	}
 	
 	public void obtainUserID(HomeTabbed home){
-		obtainingUserIDDialog = new ProgressDialog(home);
-		obtainingUserIDDialog.setMessage("Obtaining user id");
-		obtainingUserIDDialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
-
-    	    @Override
-    	    public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
-    	        if (keyCode == KeyEvent.KEYCODE_SEARCH && event.getRepeatCount() == 0) {
-    	            return true; // Pretend we processed it
-    	        }
-    	        return false; // Any other keys are still processed as normal
-    	    }
-    	});
-		obtainingUserIDDialog.setCancelable(false);
-		obtainingUserIDDialog.show();
 		new UpdateUserIDTask().execute(home);
 	}
 	
@@ -176,9 +203,27 @@ public class PreferencesAdapter {
 			int uid = INVALID_USER_ID;
 				if (isNetworkEnabled()){
 					if (hasWebAccess()){
+						caller.runOnUiThread(new Runnable(){
+							public void run(){
+								obtainingUserIDDialog = new ProgressDialog(caller);
+								obtainingUserIDDialog.setMessage("Obtaining user id");
+								obtainingUserIDDialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
+
+						    	    @Override
+						    	    public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
+						    	        if (keyCode == KeyEvent.KEYCODE_SEARCH && event.getRepeatCount() == 0) {
+						    	            return true; // Pretend we processed it
+						    	        }
+						    	        return false; // Any other keys are still processed as normal
+						    	    }
+						    	});
+								obtainingUserIDDialog.setCancelable(false);
+								obtainingUserIDDialog.show();
+							}
+						});
 					try {
 						HttpClient mHttpClient = new DefaultHttpClient();
-						HttpPost postToServer = new HttpPost(loginAddress);
+						HttpPost postToServer = new HttpPost("http://" + getHost() + "/login.json");
 						List<NameValuePair> postRequest = new ArrayList<NameValuePair>();
 				    	postRequest.add(new BasicNameValuePair("login", getUserName()));
 				    	postRequest.add(new BasicNameValuePair("password", getPassword()));
@@ -197,6 +242,16 @@ public class PreferencesAdapter {
 				}
 				else{
 					btStats.out.println("Failed to obtain user_id: no web access found.");
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+					}
+				}
+			}
+			else{
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
 				}
 			}
 			prefs.edit().putInt("userID", uid).commit();
@@ -204,20 +259,41 @@ public class PreferencesAdapter {
 		}
 		
 		protected void onPostExecute(Void result) {
-			try{
-				obtainingUserIDDialog.dismiss();
-			}
-			catch (Exception e){
-			}
+			caller.runOnUiThread(new Runnable(){
+				public void run(){
+					try{
+						obtainingUserIDDialog.dismiss();
+					}
+					catch (Exception e){
+					}
+					obtainingUserIDDialog = null;
+				}
+			});
+			
 			boolean networkSwitchedOff = false;
 			if (isNetworkEnabled() && getUserID() == INVALID_USER_ID){
 				btStats.out.println("Disabling network access.");
 				setNetworkEnabled(false);
 				networkSwitchedOff = true;
 			}
-			obtainingUserIDDialog = null;
 			caller.onUserIDUpdated(networkSwitchedOff);
 		}
 		
+	}
+	
+	public void addPreferencesChangeListener(PreferencesChangeListener listener){
+		listeners.add(listener);
+	}
+	
+	public void removePreferencesChangeListener(PreferencesChangeListener listener){
+		listeners.remove(listener);
+	}
+
+	@Override
+	public void onPreferencesChanged() {
+		PreferencesChangeListener[] listenerArray = listeners.toArray(new PreferencesChangeListener[]{});
+		for (PreferencesChangeListener listener : listenerArray){
+			listener.onPreferencesChanged();
+		}
 	}
 }

@@ -47,9 +47,6 @@ public class BarcodeReview extends ListActivity {
 		
 		Log.v(TAG, "Got DB adapter");
 		
-		//set list contents
-		fillData();
-		
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setCancelable(false)
         	.setTitle(R.string.no_zxing_title)
@@ -82,8 +79,8 @@ public class BarcodeReview extends ListActivity {
 		if (resultCode == RESULT_OK) {
 			try {
 				long code = Long.parseLong((intent.getStringExtra("SCAN_RESULT")));
-				dbAdapter.writeBarcode(code);
-				fillData();
+				long time = System.currentTimeMillis();
+				dbAdapter.writeBarcodes(new Object[][]{{time,code}});
 			}
 			catch (NumberFormatException e) {
 				Toast.makeText(this, R.string.barcodeFail, Toast.LENGTH_LONG);
@@ -91,20 +88,6 @@ public class BarcodeReview extends ListActivity {
 
 		} else {
 		}
-    }
-    
-    private void fillData() {
-        // Get all of the notes from the database and create the item list
-        Cursor c = dbAdapter.fetchAllBarcodes();
-        startManagingCursor(c);
-
-        String[] from = new String[] { DbAdapter.BC_KEY_BARCODE };
-        int[] to = new int[] { android.R.id.text1 };
-        
-        // Now create an array adapter and set it to display using our row
-        SimpleCursorAdapter barcodes =
-            new SimpleCursorAdapter(getApplicationContext(), android.R.layout.simple_list_item_1, c, from, to);
-        setListAdapter(barcodes);
     }
 
 }

@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -22,19 +21,24 @@ import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
-import org.bodytrack.BodyTrack.Activities.CameraReview;
+import org.bodytrack.BodyTrack.Activities.HomeTabbed;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.app.ProgressDialog;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.location.Location;
+import android.os.AsyncTask;
+import android.os.Bundle;
 import android.os.Environment;
+import android.view.KeyEvent;
 
 /**
  * This class wraps database operations.
@@ -46,8 +50,9 @@ public class DbAdapter {
 		INTEGER, REAL, TEXT
 	}
 	
-	private static String DB_NAME = "BodytrackDB";
-	private static int DB_VERSION = 1;
+	private static final String DB_NAME = "BodytrackDB";
+	private static final String EXTERNAL_DB_NAME = Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + DB_NAME;
+	private static final int DB_VERSION = 5;
 	
 	public static final int PIC_NOT_UPLOADED = 0;
 	public static final int PIC_PENDING_UPLOAD = 1;
@@ -65,26 +70,35 @@ public class DbAdapter {
 	public static final String BC_KEY_BARCODE = "barcode";
 	
     //Photo table creation SQL
-    private static final String PIX_TABLE_CREATE =
-        "create table pix (_id integer primary key autoincrement, "
-                + "time integer not null, pic string not null, uploadstate integer not null);";
+    
     //fields of photo table
 	public static final String PIX_TABLE = "pix";
 	public static final String	PIX_KEY_ID = "_id";
 	public static final String	PIX_KEY_TIME = "time";
 	public static final String PIX_KEY_PIC = "pic";
 	public static final String PIX_KEY_UPLOAD_STATE = "uploadstate";
+	public static final String PIX_KEY_COMMENT = "comment";
 	   
+	
+	private static final String PIX_TABLE_CREATE =
+        "create table " + PIX_TABLE + " (" + 
+        PIX_KEY_ID + " integer primary key autoincrement, " +
+         PIX_KEY_TIME + " integer not null, " +
+         PIX_KEY_PIC + " string not null, " + 
+         PIX_KEY_UPLOAD_STATE + " integer not null, " + 
+         PIX_KEY_COMMENT + " string not null default '');";
+	
+	private static final String PIX_TABLE_ADD_COMMENT_FIELD = "alter table " + PIX_TABLE + " add " + PIX_KEY_COMMENT + " string not null default '';";
 	   
 	 //generic key names
-	   public static final String KEY_ID = "_id";
+	   public static final String KEY_TIME = "time";
 	   public static final String KEY_DATA = "data";
 	   
 	 //new location table
 	   public static final String NEW_LOC_TABLE = "newlocs";
 	   
 	   private static final String NEW_LOC_TABLE_CREATE = "create table " + NEW_LOC_TABLE + " (" +
-	   					KEY_ID + " integer primary key autoincrement, " +
+	   					KEY_TIME + " integer primary key, " +
 	   					KEY_DATA + " String not null);";
 	   
 	 //new acceleration table
@@ -92,61 +106,106 @@ public class DbAdapter {
 	   
 	   
 	   private static final String NEW_ACC_TABLE_CREATE = "create table " + NEW_ACC_TABLE + " (" +
-			KEY_ID + " integer primary key autoincrement, " +
+	   KEY_TIME + " integer primary key, " +
 				KEY_DATA + " String not null);";
+	   
+	   public static final String GRAV_ACC_TABLE = "gravacc";
+	   
+	   private static final String GRAV_ACC_TABLE_CREATE = "create table " + GRAV_ACC_TABLE + " (" +
+	   KEY_TIME + " integer primary key, " +
+	   KEY_DATA + " String not null);";
+	   
+	   public static final String LINE_ACC_TABLE = "lineacc";
+	   
+	   private static final String LINE_ACC_TABLE_CREATE = "create table " + LINE_ACC_TABLE + " (" +
+	   KEY_TIME + " integer primary key, " +
+	   KEY_DATA + " String not null);";
 	   
 	 //new gyroscope table
 	   public static final String NEW_GYRO_TABLE = "newgyro";
 	   
 	   private static final String NEW_GYRO_TABLE_CREATE = "create table " + NEW_GYRO_TABLE + " (" +
-					   KEY_ID + " integer primary key autoincrement, " +
+	   KEY_TIME + " integer primary key, " +
 						KEY_DATA + " String not null);";
 	   
 	 //new wifi table
 	   public static final String NEW_WIFI_TABLE = "newwifi";
 	   
 	   private static final String NEW_WIFI_TABLE_CREATE = "create table " + NEW_WIFI_TABLE + " (" +
-	   KEY_ID + " integer primary key autoincrement, " +
+	   KEY_TIME + " integer primary key, " +
 		KEY_DATA + " String not null);";
 	   
 	 //new light table
 	   public static final String NEW_LIGHT_TABLE = "newlight";
 	   
 	   private static final String NEW_LIGHT_TABLE_CREATE = "create table " + NEW_LIGHT_TABLE + " (" +
-	   KEY_ID + " integer primary key autoincrement, " +
+	   KEY_TIME + " integer primary key, " +
 		KEY_DATA + " String not null);";
 	   
 	 //new temp table
 	   public static final String NEW_TEMP_TABLE = "newtemp";
 	   
 	   private static final String NEW_TEMP_TABLE_CREATE = "create table " + NEW_TEMP_TABLE + " (" +
-	   KEY_ID + " integer primary key autoincrement, " +
+	   KEY_TIME + " integer primary key, " +
 		KEY_DATA + " String not null);";
 	   
 	 //new orientation table
 	   public static final String NEW_ORNT_TABLE = "newornt";
 	   
 	   private static final String NEW_ORNT_TABLE_CREATE = "create table " + NEW_ORNT_TABLE + " (" +
-	   KEY_ID + " integer primary key autoincrement, " +
+	   KEY_TIME + " integer primary key, " +
 		KEY_DATA + " String not null);";
+	   
+	 //new barcode table
+	   public static final String NEW_BC_TABLE = "newbc";
+	   
+	   private static final String NEW_BC_TABLE_CREATE = "create table " + NEW_BC_TABLE + " (" +
+	   KEY_TIME + " integer primary key, " + 
+	   	KEY_DATA + " String not null);";
+	   	
+	   	public static final String LOG_COMMENT_TABLE = "comment";
+	   
+	   private static final String LOG_COMMENT_TABLE_CREATE ="create table " + LOG_COMMENT_TABLE + " (" +
+	   KEY_TIME + " integer primary key, " +
+	   KEY_DATA + " String not null);";
+	   
+	   public static final String QUICK_COMMENT_TABLE = "qcomment";
+	   
+	   public static final String QCOMMENT_KEY_ID = "_id";
+	   public static final String QCOMMENT_KEY_NAME = "name";
+	   public static final String QCOMMENT_KEY_COMMENT = "comment";
+	   
+	   private static final String QUICK_COMMENT_TABLE_CREATE = "create table " + QUICK_COMMENT_TABLE + " ("+
+	   QCOMMENT_KEY_ID + " integer primary key autoincrement, " +
+	   QCOMMENT_KEY_NAME + " String not null, " +
+	   QCOMMENT_KEY_COMMENT + " String not null);";
 	   
     private DatabaseHelper mDbHelper;
     private Context mCtx;
     private SQLiteDatabase mDb;
     
+    private HttpClient mHttpClient = new DefaultHttpClient();
+    
     private BTStatisticTracker btStats;
+    private PreferencesAdapter prefAdapter;
 	
 	private static class DatabaseHelper extends SQLiteOpenHelper {
+		 private BTStatisticTracker btStats;
+		 private boolean external;
 		
-		public DatabaseHelper(Context context) {
-			super(context, DbAdapter.DB_NAME, null, DbAdapter.DB_VERSION);
+		private DatabaseHelper(Context context, boolean external) {
+			super(context, external ? EXTERNAL_DB_NAME : DB_NAME, null, DB_VERSION);
+			btStats = BTStatisticTracker.getInstance();
+			this.external = external;
+		}
+		
+		public boolean isExternal(){
+			return external;
 		}
 
 		@Override
 		public void onCreate(SQLiteDatabase db) {
 			//create the 3 database tables
-			
-			db.execSQL(BARCODE_TABLE_CREATE);
 			db.execSQL(PIX_TABLE_CREATE);
 			
 			db.execSQL(NEW_LOC_TABLE_CREATE);
@@ -156,11 +215,29 @@ public class DbAdapter {
 			db.execSQL(NEW_LIGHT_TABLE_CREATE);
 			db.execSQL(NEW_TEMP_TABLE_CREATE);
 			db.execSQL(NEW_ORNT_TABLE_CREATE);
+			db.execSQL(NEW_BC_TABLE_CREATE);
+			db.execSQL(LOG_COMMENT_TABLE_CREATE);
+			db.execSQL(QUICK_COMMENT_TABLE_CREATE);
+			db.execSQL(GRAV_ACC_TABLE_CREATE);
+			db.execSQL(LINE_ACC_TABLE_CREATE);
 		}
 
 		@Override
 		public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-			
+			switch (oldVersion){
+				case 1://log comment table missing
+					db.execSQL(LOG_COMMENT_TABLE_CREATE);
+				case 2://comment field missing from pic table
+					db.execSQL(PIX_TABLE_ADD_COMMENT_FIELD);
+				case 3://quick comment table missing
+					db.execSQL(QUICK_COMMENT_TABLE_CREATE);
+				case 4://linear and gravity acceleration tables missing
+					db.execSQL(GRAV_ACC_TABLE_CREATE);
+					db.execSQL(LINE_ACC_TABLE_CREATE);
+				default:
+					btStats.out.println("Upgraded database from " + oldVersion + " to " + newVersion);
+					break;
+			}
 		}	
 	}
 	
@@ -173,14 +250,26 @@ public class DbAdapter {
 	}
 	
 	private DbAdapter(Context ctx) {
+		prefAdapter = PreferencesAdapter.getInstance(ctx);
 		btStats = BTStatisticTracker.getInstance();
 		this.mCtx = ctx;
 	}
 	
 	public DbAdapter open() throws SQLException{
-		mDbHelper = new DatabaseHelper(mCtx);
-		mDb = mDbHelper.getWritableDatabase();
-		mDb.setLockingEnabled(true);
+		while (true){
+			try{
+				mDbHelper = new DatabaseHelper(mCtx,prefAdapter.dbStoredExternally());
+				mDb = mDbHelper.getWritableDatabase();
+				mDb.setLockingEnabled(true);
+				break;
+			} catch (RuntimeException e){
+				mDbHelper.close();
+				if (!prefAdapter.dbStoredExternally())
+					throw e;
+				prefAdapter.setDbStoredExternally(false);
+				btStats.out.println("failed to open external db. disabling external storage!");
+			}
+		}
 		return this;
 	}
 	
@@ -188,35 +277,284 @@ public class DbAdapter {
 		mDbHelper.close();
 	}
 	
-	public long writeLocations(List<Object[]> data){
-		if (data.size() == 0)
-			return 0;
-		long start = System.currentTimeMillis();
-		JSONArray dataArray = new JSONArray();
-		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
-			Object[] curDat = iter.next();
-			Location loc = (Location) curDat[0];
-			JSONArray locData = new JSONArray();
-			try{
-				locData.put(loc.getTime() / 1000.0);
-				locData.put(loc.getLatitude());
-				locData.put(loc.getLongitude());
-				locData.put(loc.getAltitude());
-				locData.put(loc.getAccuracy());
-				locData.put(loc.getSpeed());
-				locData.put(loc.getBearing());
-				locData.put(loc.getProvider());
-				dataArray.put(locData);
+	public void verifyDBLocation(Context ctxForProgress){
+		boolean isExternal = mDbHelper.isExternal();
+		boolean shouldBeExternal = prefAdapter.dbStoredExternally();
+		if (isExternal != shouldBeExternal){
+			SQLiteDatabase oldDatabase = mDb;
+			DatabaseHelper oldHelper = mDbHelper;
+			open();
+			if (prefAdapter.dbStoredExternally() != isExternal){
+				new MoveDatabaseTask().execute(ctxForProgress,oldDatabase,oldHelper);
 			}
-			catch (Exception e){
+			else{
+				oldDatabase.close();
+				oldHelper.close();
 			}
 		}
+	}
+	
+	private class MoveDatabaseTask extends AsyncTask<Object,Void,Void>{
+		private ProgressDialog progress;
+		@Override
+		protected Void doInBackground(final Object... params) {
+			((HomeTabbed) params[0]).runOnUiThread(new Runnable(){
+
+				@Override
+				public void run() {
+					progress = new ProgressDialog((Context) params[0]);
+					progress.setMessage("Moving data...");
+					progress.setOnKeyListener(new DialogInterface.OnKeyListener() {
+
+			    	    @Override
+			    	    public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
+			    	        if (keyCode == KeyEvent.KEYCODE_SEARCH && event.getRepeatCount() == 0) {
+			    	            return true; // Pretend we processed it
+			    	        }
+			    	        return false; // Any other keys are still processed as normal
+			    	    }
+			    	});
+					progress.setCancelable(false);
+					progress.show();
+				}
+				
+			});
+			copyDatabaseToCurrentDatabase((SQLiteDatabase) params[1], (DatabaseHelper) params[2]);
+			while (progress == null)
+				try {
+					Thread.sleep(10);
+				} catch (InterruptedException e) {
+				}
+			return null;
+		}
+		
+		protected void onPostExecute(Void result){
+			progress.dismiss();
+		}
+		
+	}
+	
+	private void copyDatabaseToCurrentDatabase(SQLiteDatabase oDb, DatabaseHelper oldHelper){
+		long start = System.currentTimeMillis();
+		int count = 0;
+		count += copyGenericTable(NEW_LOC_TABLE,oDb);//move the generic tables
+		count += copyGenericTable(NEW_ACC_TABLE,oDb);
+		count += copyGenericTable(NEW_GYRO_TABLE,oDb);
+		count += copyGenericTable(NEW_WIFI_TABLE,oDb);
+		count += copyGenericTable(NEW_LIGHT_TABLE,oDb);
+		count += copyGenericTable(NEW_TEMP_TABLE,oDb);
+		count += copyGenericTable(NEW_ORNT_TABLE,oDb);
+		count += copyGenericTable(LOG_COMMENT_TABLE,oDb);
+		count += copyGenericTable(GRAV_ACC_TABLE,oDb);
+		count += copyGenericTable(LINE_ACC_TABLE,oDb);
+		count += copyPictureTable(oDb); //move picture table
+		count += copyQuickCommentTable(oDb); //move quick comment table
+		oDb.close();
+		oldHelper.close();
+		btStats.out.println("Took " + (System.currentTimeMillis() - start) + " ms to transfer " + count + " db entries!");
+	}
+	
+	private long copyPictureTable(SQLiteDatabase oDb){
+		Cursor c = oDb.query(PIX_TABLE, new String[] {PIX_KEY_TIME,PIX_KEY_PIC,PIX_KEY_UPLOAD_STATE,PIX_KEY_COMMENT}, null, null, null, null, PIX_KEY_ID);
+		if (c == null)
+			return 0;
+		long count = 0;
+		int timePos = c.getColumnIndex(PIX_KEY_TIME);
+		int picPos = c.getColumnIndex(PIX_KEY_PIC);
+		int statePos = c.getColumnIndex(PIX_KEY_UPLOAD_STATE);
+		int cmtPos = c.getColumnIndex(PIX_KEY_COMMENT);
+		if (c.moveToFirst()){
+			do{
+				ContentValues dataToPut = new ContentValues();
+				dataToPut.put(PIX_KEY_TIME, c.getLong(timePos));
+				dataToPut.put(PIX_KEY_PIC, c.getString(picPos));
+				dataToPut.put(PIX_KEY_UPLOAD_STATE, c.getInt(statePos));
+				dataToPut.put(PIX_KEY_COMMENT, c.getString(cmtPos));
+				if (mDb.insert(PIX_TABLE, null, dataToPut) >= 0)
+					count++;
+			} while (c.moveToNext());
+		}
+		c.close();
+		oDb.delete(PIX_TABLE, null, null);
+		return count;
+	}
+	private long copyQuickCommentTable(SQLiteDatabase oDb){
+		Cursor c = oDb.query(QUICK_COMMENT_TABLE, new String[]{QCOMMENT_KEY_NAME, QCOMMENT_KEY_COMMENT}, null, null, null, null, QCOMMENT_KEY_ID);
+		if (c == null)
+			return 0;
+		long count = 0;
+		int namePos = c.getColumnIndex(QCOMMENT_KEY_NAME);
+		int cmtPos = c.getColumnIndex(QCOMMENT_KEY_COMMENT);
+		if (c.moveToFirst()){
+			do{
+				ContentValues dataToPut = new ContentValues();
+				dataToPut.put(QCOMMENT_KEY_NAME, c.getString(namePos));
+				dataToPut.put(QCOMMENT_KEY_COMMENT, c.getString(cmtPos));
+				if (mDb.insert(QUICK_COMMENT_TABLE, null, dataToPut) >= 0)
+					count++;
+			} while (c.moveToNext());
+		}
+		c.close();
+		oDb.delete(QUICK_COMMENT_TABLE, null, null);
+		return count;
+	}
+	
+	private long copyGenericTable(String tableName, SQLiteDatabase oDb){
+		Cursor c = oDb.query(tableName, new String[]{KEY_TIME,KEY_DATA}, null, null, null, null, KEY_TIME);
+		if (c == null)
+			return 0;
+		long count = 0;
+		int timeIndex = c.getColumnIndex(KEY_TIME);
+		int dataIndex = c.getColumnIndex(KEY_DATA);
+		if (c.moveToFirst()){
+			do{
+				ContentValues dataToPut = new ContentValues();
+				dataToPut.put(KEY_TIME, c.getLong(timeIndex));
+				dataToPut.put(KEY_DATA, c.getString(dataIndex));
+				if (mDb.insert(tableName, null, dataToPut) >= 0)
+					count++;
+			} while (c.moveToNext());
+		}
+		c.close();
+		oDb.delete(tableName, null, null);
+		return count;
+	}
+	
+	private long writeComment(String comment, long time){
+		ContentValues commentToPut = new ContentValues();
+		long id = time;
+		commentToPut.put(KEY_TIME, id);
+		commentToPut.put(KEY_DATA, comment);
+		long start = System.currentTimeMillis();
+		long retVal = mDb.insert(LOG_COMMENT_TABLE, null, commentToPut);
+		btStats.addTimeSpentPushingIntoDB(System.currentTimeMillis() - start);
+		btStats.addDbWrite();
+		if (retVal >= 0)
+			btStats.out.println("Comment " + id + " was written to database!");
+		else
+			btStats.out.println("Comment " + id + " failed to write to database!");
+		return retVal;
+	}
+	
+	public long writeComment(String comment){
+		return writeComment(comment,System.currentTimeMillis());
+	}
+	
+	public Cursor fetchOldestComment(){
+		Cursor c = mDb.query(LOG_COMMENT_TABLE, new String[] {KEY_TIME, KEY_DATA}, null, null, null, null, KEY_TIME, "1");
+		if (c != null)
+			if (!c.moveToFirst()){
+				c.close();
+				return null;
+			}
+		return c;
+	}
+	
+	public Cursor fetchComment(long id){
+		Cursor c = mDb.query(LOG_COMMENT_TABLE, new String[]{KEY_TIME,KEY_DATA}, KEY_TIME + "=" + id, null, null, null, KEY_TIME, "1");
+		if (c != null)
+			if (!c.moveToFirst()){
+				c.close();
+				return null;
+			}
+		return c;
+	}
+	
+	public long deleteComment(long id){
+		btStats.out.println("Comment " + id + " deleted!");
+		return mDb.delete(LOG_COMMENT_TABLE, KEY_TIME + "=" + id, null);
+	}
+	
+	public long deleteOldestComment(){
+		Cursor c = fetchOldestComment();
+		if (c == null)
+			return -1;
+		long retVal = deleteComment(c.getLong(0));
+		c.close();
+		return retVal;
+	}
+	
+	public long writeQuickComment(String name, String comment){
+		ContentValues commentToPut = new ContentValues();
+		commentToPut.put(QCOMMENT_KEY_NAME, name);
+		commentToPut.put(QCOMMENT_KEY_COMMENT, comment);
+		long start = System.currentTimeMillis();
+		long retVal = mDb.insert(QUICK_COMMENT_TABLE, null, commentToPut);
+		btStats.addTimeSpentPushingIntoDB(System.currentTimeMillis() - start);
+		btStats.addDbWrite();
+		if (retVal >= 0)
+			btStats.out.println("Quick Comment ("+name+","+comment+") was written to the database!");
+		else
+			btStats.out.println("Quick Comment ("+name+","+comment+") failed to write to database!");
+		return retVal;
+	}
+	
+	public long deleteQuickComment(long id){
+		System.out.println("Quick Comment " + id + " deleted!");
+		return mDb.delete(QUICK_COMMENT_TABLE, QCOMMENT_KEY_ID + "=" + id, null);
+	}
+	
+	public Cursor fetchQuickComments(){
+		Cursor c = mDb.query(QUICK_COMMENT_TABLE, new String[]{QCOMMENT_KEY_ID,QCOMMENT_KEY_NAME,QCOMMENT_KEY_COMMENT}, null, null, null, null, QCOMMENT_KEY_ID);
+		if (c != null)
+			c.moveToFirst();
+		return c;
+	}
+	
+	public Cursor fetchQuickComment(long id){
+		Cursor c = mDb.query(QUICK_COMMENT_TABLE, new String[]{QCOMMENT_KEY_ID,QCOMMENT_KEY_NAME,QCOMMENT_KEY_COMMENT}, QCOMMENT_KEY_ID + "=" + id, null, null, null, QCOMMENT_KEY_ID, "1");
+		if (c != null)
+			if (!c.moveToFirst()){
+				c.close();
+				return null;
+			}
+		return c;
+	}
+	
+	public boolean logQuickComment(long id){
+		Cursor c = fetchQuickComment(id);
+		if (c == null)
+			return false;
+		return writeComment(c.getString(c.getColumnIndex(QCOMMENT_KEY_COMMENT))) >= 0;
+	}
+	
+	public long writeLocations(Object[][] data){
+		if (data.length == 0)
+			return 0;
+		long start = System.currentTimeMillis();
+		StringBuilder dataArray = new StringBuilder("[");
+		boolean first = true;
+		long time = 0;
+		for (Object[] curDat : data){
+			Location loc = (Location) curDat[0];
+			if (first){
+				first = false;
+			}
+			else{
+				dataArray.append(",");
+			}
+			dataArray.append("[");
+			if (time == 0)
+				time = loc.getTime();
+			dataArray.append(loc.getTime() / 1000.0);
+			dataArray.append(",").append(loc.getLatitude());
+			dataArray.append(",").append(loc.getLongitude());
+			dataArray.append(",").append(loc.getAltitude());
+			dataArray.append(",").append(loc.getAccuracy());
+			dataArray.append(",").append(loc.getSpeed());
+			dataArray.append(",").append(loc.getBearing());
+			dataArray.append(",\"").append(loc.getProvider()).append("\"");
+			dataArray.append(",").append(loc.getExtras().getInt("satellites",0));
+			dataArray.append("]");
+		}
+		dataArray.append("]");
 		String jsonData = dataArray.toString();
 		long finish = System.currentTimeMillis();
 		btStats.addTimeSpentConvertingToJSON(finish - start);
 		start = finish;
 		ContentValues locToPut = new ContentValues();
 		locToPut.put(KEY_DATA, jsonData);
+		locToPut.put(KEY_TIME, time);
 		long retVal = mDb.insert(NEW_LOC_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
@@ -224,29 +562,34 @@ public class DbAdapter {
 		return retVal;
 	}
 	
-	public long writeAccelerations(List<Object[]> data){
-		if (data.size() == 0)
+	public long writeAccelerations(Object[][] data){
+		if (data.length == 0)
 			return 0;
 		long start = System.currentTimeMillis();
-		JSONArray dataArray = new JSONArray();
-		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
-			Object[] curDat = iter.next();
-			JSONArray locData = new JSONArray();
-			try{
-				locData.put(((Long) curDat[0]) / 1000.0);
-				for (int i = 0; i < 3; i++)
-					locData.put((Float) curDat[1+i]);
-				dataArray.put(locData);
-			}
-			catch (Exception e){
-			}
+		long time = 0;
+		StringBuilder dataArray = new StringBuilder("[");
+		boolean first = true;
+		for (Object[] datum : data){
+			if (first)
+				first = false;
+			else
+				dataArray.append(",");
+			dataArray.append("[");
+			if (time == 0)
+				time = (Long) datum[0];
+			dataArray.append(((Long) datum[0]) / 1000.0);
+			for (int i = 0; i < 3; i++)
+				dataArray.append(",").append((Float) datum[1+i]);
+			dataArray.append("]");
 		}
+		dataArray.append("]");
 		String jsonData = dataArray.toString();
 		long finish = System.currentTimeMillis();
 		btStats.addTimeSpentConvertingToJSON(finish - start);
 		start = finish;
 		ContentValues accToPut = new ContentValues();
 		accToPut.put(KEY_DATA, jsonData);
+		accToPut.put(KEY_TIME, time);
 		long retVal = mDb.insert(NEW_ACC_TABLE, null, accToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
@@ -254,29 +597,106 @@ public class DbAdapter {
 		return retVal;
 	}
 	
-	public long writeWifis(List<Object[]> data){
-		if (data.size() == 0)
+	public long writeGravityAccelerations(Object[][] data){
+		if (data.length == 0)
 			return 0;
 		long start = System.currentTimeMillis();
-		JSONArray dataArray = new JSONArray();
-		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
-			Object[] curDat = iter.next();
-			JSONArray locData = new JSONArray();
-			try{
-				locData.put(((Long) curDat[0]) / 1000.0);
-				for (int i = 0; i < 2; i++)
-					locData.put((String) curDat[1+i]);
-				dataArray.put(locData);
-			}
-			catch (Exception e){
-			}
+		long time = 0;
+		StringBuilder dataArray = new StringBuilder("[");
+		boolean first = true;
+		for (Object[] datum : data){
+			if (first)
+				first = false;
+			else
+				dataArray.append(",");
+			dataArray.append("[");
+			if (time == 0)
+				time = (Long) datum[0];
+			dataArray.append(((Long) datum[0]) / 1000.0);
+			for (int i = 0; i < 3; i++)
+				dataArray.append(",").append((Float) datum[1+i]);
+			dataArray.append("]");
 		}
+		dataArray.append("]");
+		String jsonData = dataArray.toString();
+		long finish = System.currentTimeMillis();
+		btStats.addTimeSpentConvertingToJSON(finish - start);
+		start = finish;
+		ContentValues accToPut = new ContentValues();
+		accToPut.put(KEY_DATA, jsonData);
+		accToPut.put(KEY_TIME, time);
+		long retVal = mDb.insert(GRAV_ACC_TABLE, null, accToPut);
+		finish = System.currentTimeMillis();
+		btStats.addTimeSpentPushingIntoDB(finish - start);
+		btStats.addDbWrite();
+		return retVal;
+	}
+	
+	public long writeLinearAccelerations(Object[][] data){
+		if (data.length == 0)
+			return 0;
+		long start = System.currentTimeMillis();
+		long time = 0;
+		StringBuilder dataArray = new StringBuilder("[");
+		boolean first = true;
+		for (Object[] datum : data){
+			if (first)
+				first = false;
+			else
+				dataArray.append(",");
+			dataArray.append("[");
+			if (time == 0)
+				time = (Long) datum[0];
+			dataArray.append(((Long) datum[0]) / 1000.0);
+			for (int i = 0; i < 3; i++)
+				dataArray.append(",").append((Float) datum[1+i]);
+			dataArray.append("]");
+		}
+		dataArray.append("]");
+		String jsonData = dataArray.toString();
+		long finish = System.currentTimeMillis();
+		btStats.addTimeSpentConvertingToJSON(finish - start);
+		start = finish;
+		ContentValues accToPut = new ContentValues();
+		accToPut.put(KEY_DATA, jsonData);
+		accToPut.put(KEY_TIME, time);
+		long retVal = mDb.insert(LINE_ACC_TABLE, null, accToPut);
+		finish = System.currentTimeMillis();
+		btStats.addTimeSpentPushingIntoDB(finish - start);
+		btStats.addDbWrite();
+		return retVal;
+	}
+	
+	public long writeWifis(Object[][] data){
+		if (data.length == 0)
+			return 0;
+		long start = System.currentTimeMillis();
+		StringBuilder dataArray = new StringBuilder("[");
+		boolean first = true;
+		long time = 0;
+		for (Object[] curDat : data){
+			if (first)
+				first = false;
+			else
+				dataArray.append(",");
+			dataArray.append("[");
+			if (time == 0)
+				time = (Long) curDat[0];
+			dataArray.append(((Long) curDat[0]) / 1000.0);
+			for (int i = 0; i < 3; i++)
+				dataArray.append(",\"").append((String) curDat[1+i]).append("\"");
+			for (int i = 0; i < 2; i++)
+				dataArray.append(",").append((Integer) curDat[4+i]);
+			dataArray.append("]");
+		}
+		dataArray.append("]");
 		String jsonData = dataArray.toString();
 		long finish = System.currentTimeMillis();
 		btStats.addTimeSpentConvertingToJSON(finish - start);
 		start = finish;
 		ContentValues locToPut = new ContentValues();
 		locToPut.put(KEY_DATA, jsonData);
+		locToPut.put(KEY_TIME, time);
 		long retVal = mDb.insert(NEW_WIFI_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
@@ -284,29 +704,34 @@ public class DbAdapter {
 		return retVal;
 	}
 	
-	public long writeGyros(List<Object[]> data){
-		if (data.size() == 0)
+	public long writeGyros(Object[][] data){
+		if (data.length == 0)
 			return 0;
 		long start = System.currentTimeMillis();
-		JSONArray dataArray = new JSONArray();
-		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
-			Object[] curDat = iter.next();
-			JSONArray locData = new JSONArray();
-			try{
-				locData.put(((Long) curDat[0]) / 1000.0);
-				for (int i = 0; i < 3; i++)
-					locData.put((Float) curDat[1+i]);
-				dataArray.put(locData);
-			}
-			catch (Exception e){
-			}
+		StringBuilder dataArray = new StringBuilder("[");
+		boolean first = true;
+		long time = 0;
+		for (Object[] curDat : data){
+			if (first)
+				first = false;
+			else
+				dataArray.append(",");
+			dataArray.append("[");
+			if (time == 0)
+				time = (Long) curDat[0];
+			dataArray.append(((Long) curDat[0]) / 1000.0);
+			for (int i = 0; i < 3; i++)
+				dataArray.append(",").append((Float) curDat[1+i]);
+			dataArray.append("]");
 		}
+		dataArray.append("]");
 		String jsonData = dataArray.toString();
 		long finish = System.currentTimeMillis();
 		btStats.addTimeSpentConvertingToJSON(finish - start);
 		start = finish;
 		ContentValues locToPut = new ContentValues();
 		locToPut.put(KEY_DATA, jsonData);
+		locToPut.put(KEY_TIME, time);
 		long retVal = mDb.insert(NEW_GYRO_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
@@ -314,29 +739,34 @@ public class DbAdapter {
 		return retVal;
 	}
 	
-	public long writeOrientations(List<Object[]> data){
-		if (data.size() == 0)
+	public long writeOrientations(Object[][] data){
+		if (data.length == 0)
 			return 0;
 		long start = System.currentTimeMillis();
-		JSONArray dataArray = new JSONArray();
-		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
-			Object[] curDat = iter.next();
-			JSONArray locData = new JSONArray();
-			try{
-				locData.put(((Long) curDat[0]) / 1000.0);
-				for (int i = 0; i < 3; i++)
-					locData.put((Float) curDat[1+i]);
-				dataArray.put(locData);
-			}
-			catch (Exception e){
-			}
+		StringBuilder dataArray = new StringBuilder("[");
+		boolean first = true;
+		long time = 0;
+		for (Object[] curDat : data){
+			if (first)
+				first = false;
+			else
+				dataArray.append(",");
+			dataArray.append("[");
+			if (time == 0)
+				time = (Long) curDat[0];
+			dataArray.append(((Long) curDat[0]) / 1000.0);
+			for (int i = 0; i < 3; i++)
+				dataArray.append(",").append((Float) curDat[1+i]);
+			dataArray.append("]");
 		}
+		dataArray.append("]");
 		String jsonData = dataArray.toString();
 		long finish = System.currentTimeMillis();
 		btStats.addTimeSpentConvertingToJSON(finish - start);
 		start = finish;
 		ContentValues locToPut = new ContentValues();
 		locToPut.put(KEY_DATA, jsonData);
+		locToPut.put(KEY_TIME, time);
 		long retVal = mDb.insert(NEW_ORNT_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
@@ -344,28 +774,33 @@ public class DbAdapter {
 		return retVal;
 	}
 	
-	public long writeLights(List<Object[]> data){
-		if (data.size() == 0)
+	public long writeLights(Object[][] data){
+		if (data.length == 0)
 			return 0;
 		long start = System.currentTimeMillis();
-		JSONArray dataArray = new JSONArray();
-		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
-			Object[] curDat = iter.next();
-			JSONArray locData = new JSONArray();
-			try{
-				locData.put(((Long) curDat[0]) / 1000.0);
-				locData.put((Float) curDat[1]);
-				dataArray.put(locData);
-			}
-			catch (Exception e){
-			}
+		StringBuilder dataArray = new StringBuilder("[");
+		boolean first = true;
+		long time = 0;
+		for (Object[] curDat : data){
+			if (first)
+				first = false;
+			else
+				dataArray.append(",");
+			dataArray.append("[");
+			if (time == 0)
+				time = (Long) curDat[0];
+			dataArray.append(((Long) curDat[0]) / 1000.0);
+			dataArray.append(",").append((Float) curDat[1]);
+			dataArray.append("]");
 		}
+		dataArray.append("]");
 		String jsonData = dataArray.toString();
 		long finish = System.currentTimeMillis();
 		btStats.addTimeSpentConvertingToJSON(finish - start);
 		start = finish;
 		ContentValues locToPut = new ContentValues();
 		locToPut.put(KEY_DATA, jsonData);
+		locToPut.put(KEY_TIME, time);
 		long retVal = mDb.insert(NEW_LIGHT_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
@@ -373,28 +808,33 @@ public class DbAdapter {
 		return retVal;
 	}
 	
-	public long writeTemps(List<Object[]> data){
-		if (data.size() == 0)
+	public long writeTemps(Object[][] data){
+		if (data.length == 0)
 			return 0;
 		long start = System.currentTimeMillis();
-		JSONArray dataArray = new JSONArray();
-		for (Iterator<Object[]> iter = data.iterator(); iter.hasNext();){
-			Object[] curDat = iter.next();
-			JSONArray locData = new JSONArray();
-			try{
-				locData.put(((Long) curDat[0]) / 1000.0);
-				locData.put((Float) curDat[1]);
-				dataArray.put(locData);
-			}
-			catch (Exception e){
-			}
+		StringBuilder dataArray = new StringBuilder("[");
+		boolean first = true;
+		long time = 0;
+		for (Object[] curDat : data){
+			if (first)
+				first = false;
+			else
+				dataArray.append(",");
+			dataArray.append("[");
+			if (time == 0)
+				time = (Long) curDat[0];
+			dataArray.append(((Long) curDat[0]) / 1000.0);
+			dataArray.append(",").append((Float) curDat[1]);
+			dataArray.append("]");
 		}
+		dataArray.append("]");
 		String jsonData = dataArray.toString();
 		long finish = System.currentTimeMillis();
 		btStats.addTimeSpentConvertingToJSON(finish - start);
 		start = finish;
 		ContentValues locToPut = new ContentValues();
 		locToPut.put(KEY_DATA, jsonData);
+		locToPut.put(KEY_TIME, time);
 		long retVal = mDb.insert(NEW_TEMP_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
@@ -411,19 +851,19 @@ public class DbAdapter {
     }
     
     private Cursor fetchPics(String limit){
-    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, null, null, null, null, PIX_KEY_ID, limit);
+    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE, PIX_KEY_COMMENT}, null, null, null, null, PIX_KEY_ID, limit);
     }
     
     public Cursor fetchAllUnuploadedPics() {
-    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, PIX_KEY_UPLOAD_STATE + " = " + PIC_NOT_UPLOADED, null, null, null, PIX_KEY_ID);
+    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE, PIX_KEY_COMMENT}, PIX_KEY_UPLOAD_STATE + " = " + PIC_NOT_UPLOADED, null, null, null, PIX_KEY_ID);
     }
     
     public Cursor fetchAllPendingUploadPics(){
-    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, PIX_KEY_UPLOAD_STATE + " = " + PIC_PENDING_UPLOAD, null, null, null, PIX_KEY_ID);
+    	return mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE, PIX_KEY_COMMENT}, PIX_KEY_UPLOAD_STATE + " = " + PIC_PENDING_UPLOAD, null, null, null, PIX_KEY_ID);
     }
     
     public Cursor fetchFirstPendingUploadPic(){
-    	Cursor c = mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, PIX_KEY_UPLOAD_STATE + " = " + PIC_PENDING_UPLOAD, null, null, null, PIX_KEY_ID, "1");
+    	Cursor c = mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE, PIX_KEY_COMMENT}, PIX_KEY_UPLOAD_STATE + " = " + PIC_PENDING_UPLOAD, null, null, null, PIX_KEY_ID, "1");
     	if (c != null){
     		c.moveToFirst();
     	}
@@ -434,7 +874,7 @@ public class DbAdapter {
 
         Cursor mCursor =
 
-            mDb.query(true, PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, PIX_KEY_ID + "=" + id, null,
+            mDb.query(true, PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE, PIX_KEY_COMMENT}, PIX_KEY_ID + "=" + id, null,
                     null, null, null, null);
         if (mCursor != null) {
             mCursor.moveToFirst();
@@ -446,7 +886,7 @@ public class DbAdapter {
     public Cursor fetchLastPicture(){
     	Cursor mCursor =
 
-            mDb.query(true, PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, "1", null,
+            mDb.query(true, PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE, PIX_KEY_COMMENT}, "1", null,
                     null, null, PIX_KEY_ID + " desc", "1");
         if (mCursor != null) {
             mCursor.moveToFirst();
@@ -483,304 +923,200 @@ public class DbAdapter {
     }
     
     public long deleteUploadedPictures(){
-    	Cursor c = mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE}, PIX_KEY_UPLOAD_STATE + " = 1", null, null, null, PIX_KEY_ID);
-    	c.moveToFirst();
-    	while (!c.isAfterLast()){
-    		String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
-    		 mCtx.deleteFile(picFileName);
-    		c.moveToNext();
+    	Cursor c = mDb.query(PIX_TABLE, new String[] {PIX_KEY_ID, PIX_KEY_TIME, PIX_KEY_PIC, PIX_KEY_UPLOAD_STATE, PIX_KEY_COMMENT}, PIX_KEY_UPLOAD_STATE + " = 1", null, null, null, PIX_KEY_ID);
+    	if (c != null){
+	    	c.moveToFirst();
+	    	while (!c.isAfterLast()){
+	    		String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
+	    		 mCtx.deleteFile(picFileName);
+	    		c.moveToNext();
+	    	}
+	    	c.close();
     	}
-    	c.close();
     	
         return mDb.delete(PIX_TABLE, PIX_KEY_UPLOAD_STATE + "=" + PIC_UPLOADED, null);
     }
     
-	//WARNING: TIME MUST BE FIRST COLUMN IN QUERIES. UPLOADER CODE DEPENDS ON THIS
-    public Cursor fetchAllBarcodes() {
-        return mDb.query(BARCODE_TABLE, new String[] {BC_KEY_TIME, BC_KEY_ID, BC_KEY_BARCODE},
-                null, null, null, null, BC_KEY_TIME);
-    }
-    
-	public long writeBarcode(long barcode)
-	{
-		ContentValues codeToPut = new ContentValues();
-		codeToPut.put(BC_KEY_BARCODE, barcode);
-		codeToPut.put(BC_KEY_TIME, System.currentTimeMillis());
-		
-		btStats.addDbWrite();
-		
-		return mDb.insert(BARCODE_TABLE, null, codeToPut);
+    public long writeBarcodes(Object[][] data){
+		if (data.length == 0)
+			return 0;
+		long start = System.currentTimeMillis();
+		JSONArray dataArray = new JSONArray();
+		for (Object[] curDat : data){
+			JSONArray bcData = new JSONArray();
+			try{
+				bcData.put(((Long) curDat[0]) / 1000.0);
+				bcData.put((Long) curDat[1]);
+				dataArray.put(bcData);
+			}
+			catch (Exception e){
+			}
+		}
+		String jsonData = dataArray.toString();
+		long finish = System.currentTimeMillis();
+		btStats.addTimeSpentConvertingToJSON(finish - start);
+		start = finish;
+		ContentValues locToPut = new ContentValues();
+		locToPut.put(KEY_DATA, jsonData);
+		long retVal = mDb.insert(NEW_BC_TABLE, null, locToPut);
+		finish = System.currentTimeMillis();
+		btStats.addTimeSpentPushingIntoDB(finish - start);
+		btStats.addDbWrite();		return retVal;
 	}
 	
 	public long getSize(){
 		Cursor c = mDb.rawQuery("pragma page_size;", null);
+		if (c == null)
+			return 0;
 		c.moveToFirst();
-		long size = c.getLong(0);
+		long size;
+		try{
+			size = c.getLong(0);
+		}
+		catch (Exception e){
+			size = 0;
+		}
 		c.close();
 		c = mDb.rawQuery("pragma page_count;", null);
+		if (c == null)
+			return 0;
 		c.moveToFirst();
-		size *= c.getLong(0);
+		try{
+			size *= c.getLong(0);
+		}
+		catch (Exception e){
+			size = 0;
+		}
 		c.close();
 		return size;
 	}
 	
-	public long writePicture(byte[] picture) throws IOException {
+	public long writePicture(File picture, String comment){
+		if (comment == null)
+			comment = "";
 		ContentValues picToPut = new ContentValues();
 		long currentTime = System.currentTimeMillis();
 		String picFileName = Environment.getExternalStorageDirectory().getAbsolutePath() + "/pic_" + currentTime + ".jpg";
-		
-		FileOutputStream fos;
-		try{
-			fos = new FileOutputStream(picFileName);
-		}
-		catch (IOException e){
-			picFileName = mCtx.getFilesDir().getAbsolutePath() + "/pic_" + currentTime + ".jpg";
-			fos = new FileOutputStream(picFileName);
-		}
-		fos.write(picture);
-		fos.close();
+		picture.renameTo(new File(picFileName));
 		
 		picToPut.put(PIX_KEY_PIC, picFileName);
 		picToPut.put(PIX_KEY_TIME, System.currentTimeMillis());
-		picToPut.put(PIX_KEY_UPLOAD_STATE, 0);
+		picToPut.put(PIX_KEY_COMMENT, comment);
+		picToPut.put(PIX_KEY_UPLOAD_STATE, PIC_PENDING_UPLOAD);
 		long result = mDb.insert(PIX_TABLE, null, picToPut);
 		btStats.addDbWrite();
 		if (result == 0){
-			mCtx.deleteFile(picFileName);
+			picture.delete();
 		}
 		else{
 			Cursor c = mDb.query(PIX_TABLE, new String[]{PIX_KEY_ID}, null, null, null, null, PIX_KEY_ID + " DESC", "1");
-			if (c.moveToFirst()){
-				long id = c.getLong(c.getColumnIndex(PIX_KEY_ID));
-				btStats.out.println("Pic " + id + " created");
+			if (c != null){
+				if (c.moveToFirst()){
+					long id = c.getLong(c.getColumnIndex(PIX_KEY_ID));
+					btStats.out.println("Pic " + id + " created with comment: " + comment);
+				}
+				c.close();
 			}
-			c.close();
+			else{
+				btStats.out.println("Pic created. Failed to obtain id of pic.");
+			}
 		}
 		return result;
 	}
 	
-	private static JSONArray gpsChannelArray = null;
-	private static final String[] gpsChannelArrayElements = {"latitude","longitude","altitude","uncertainty in meters","speed","bearing","provider"};
+	private static String gpsChannelArray = "[\"latitude\",\"longitude\",\"altitude\"," +
+			"\"uncertainty in meters\",\"speed\",\"bearing\",\"provider\",\"satellites\"]";
 	
-	public void uploadLocations(String macAdd, String uploadAdd, String devNickName){
-		
-		if (gpsChannelArray == null){
-			gpsChannelArray = new JSONArray();
-			for (int i = 0; i < gpsChannelArrayElements.length; i++){
-				gpsChannelArray.put(gpsChannelArrayElements[i]);
-			}
-		}
-		
-		
-		Cursor c = mDb.query(NEW_LOC_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
-		if (!c.moveToFirst()){
-			c.close();
-			return;
-		}
-		
-		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, gpsChannelArray.toString(), c);
-		c.close();
-		if (lastId >= 0){
-			long start = System.currentTimeMillis();
-			mDb.delete(NEW_LOC_TABLE, KEY_ID + "<=" + lastId, null);
-			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
-		}
-	    return;
+	public void uploadLocations(String macAdd, String uploadAdd, String devNickName){		
+		uploadLogData(macAdd, uploadAdd, devNickName, gpsChannelArray, NEW_LOC_TABLE);
 	}
 	
-	private static JSONArray accChannelArray = null;
-	private static final String[] accChannelArrayElements = {"acceleration_x","acceleration_y","acceleration_z"};
+	private static String accChannelArray = "[\"acceleration_x\",\"acceleration_y\",\"acceleration_z\"]";
 	
 	public void uploadAccelerations(String macAdd, String uploadAdd, String devNickName){
-		
-		if (accChannelArray == null){
-			accChannelArray = new JSONArray();
-			for (int i = 0; i < accChannelArrayElements.length; i++){
-				accChannelArray.put(accChannelArrayElements[i]);
-			}
-		}
-		
-		Cursor c = mDb.query(NEW_ACC_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
-		if (!c.moveToFirst()){
-			c.close();
-			return;
-		}
-		
-		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, accChannelArray.toString(), c);
-		c.close();
-		if (lastId >= 0){
-			long start = System.currentTimeMillis();
-			mDb.delete(NEW_ACC_TABLE, KEY_ID + "<=" + lastId, null);
-			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
-		}
-	    return;
+		uploadLogData(macAdd, uploadAdd, devNickName, accChannelArray, NEW_ACC_TABLE);
 	}
 	
-	private static JSONArray gyroChannelArray = null;
-	private static final String[] gyroChannelArrayElements = {"angular_speed_x","angular_speed_y","angular_speed_z"};
+	private static String gravChannelArray = "[\"gravity_acceleration_x\",\"gravity_acceleration_y\",\"gravity_acceleration_z\"]";
+	
+	public void uploadGravityAccelerations(String macAdd, String uploadAdd, String devNickName){
+		uploadLogData(macAdd, uploadAdd, devNickName, gravChannelArray, GRAV_ACC_TABLE);
+	}
+	
+	private static String lineChannelArray = "[\"linear_acceleration_x\",\"linear_acceleration_y\",\"linear_acceleration_z\"]";
+	
+	public void uploadLinearAccelerations(String macAdd, String uploadAdd, String devNickName){
+		uploadLogData(macAdd, uploadAdd, devNickName, lineChannelArray, LINE_ACC_TABLE);
+	}
+	
+	private static String gyroChannelArray = "[\"angular_speed_x\",\"angular_speed_y\",\"angular_speed_z\"]";
 	
 	public void uploadGyros(String macAdd, String uploadAdd, String devNickName){
-		
-		if (gyroChannelArray == null){
-			gyroChannelArray = new JSONArray();
-			for (int i = 0; i < gyroChannelArrayElements.length; i++){
-				gyroChannelArray.put(gyroChannelArrayElements[i]);
-			}
-		}
-		
-		
-		Cursor c = mDb.query(NEW_GYRO_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
-		if (!c.moveToFirst()){
-			c.close();
-			return;
-		}
-		
-		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, gyroChannelArray.toString(), c);
-		c.close();
-		if (lastId >= 0){
-			long start = System.currentTimeMillis();
-			mDb.delete(NEW_GYRO_TABLE, KEY_ID + "<=" + lastId, null);
-			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
-		}
-	    return;
+		uploadLogData(macAdd, uploadAdd, devNickName, gyroChannelArray, NEW_GYRO_TABLE);
 	}
 	
-	private static JSONArray ornChannelArray = null;
-	private static final String[] ornChannelArrayElements = {"azimuth","pitch","roll"};
+	private static String ornChannelArray = "[\"azimuth\",\"pitch\",\"roll\"]";
 	
 	public void uploadOrientations(String macAdd, String uploadAdd, String devNickName){
-		
-		if (ornChannelArray == null){
-			ornChannelArray = new JSONArray();
-			for (int i = 0; i < ornChannelArrayElements.length; i++){
-				ornChannelArray.put(ornChannelArrayElements[i]);
-			}
-		}
-		
-		
-		Cursor c = mDb.query(NEW_ORNT_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
-		if (!c.moveToFirst()){
-			c.close();
-			return;
-		}
-		
-		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, ornChannelArray.toString(), c);
-		c.close();
-		if (lastId >= 0){
-			long start = System.currentTimeMillis();
-			mDb.delete(NEW_ORNT_TABLE, KEY_ID + "<=" + lastId, null);
-			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
-		}
-	    return;
+		uploadLogData(macAdd, uploadAdd, devNickName, ornChannelArray, NEW_ORNT_TABLE);
 	}
 	
-	private static JSONArray lightChannelArray = null;
-	private static final String[] lightChannelArrayElements = {"illuminance"};
+	private static String lightChannelArray = "[\"illuminance\"]";
 	
 	public void uploadIlluminances(String macAdd, String uploadAdd, String devNickName){
-		
-		if (lightChannelArray == null){
-			lightChannelArray = new JSONArray();
-			for (int i = 0; i < lightChannelArrayElements.length; i++){
-				lightChannelArray.put(lightChannelArrayElements[i]);
-			}
-		}
-		
-		
-		Cursor c = mDb.query(NEW_LIGHT_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
-		if (!c.moveToFirst()){
-			c.close();
-			return;
-		}
-		
-		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, lightChannelArray.toString(), c);
-		c.close();
-		if (lastId >= 0){
-			long start = System.currentTimeMillis();
-			mDb.delete(NEW_LIGHT_TABLE, KEY_ID + "<=" + lastId, null);
-			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
-		}
-	    return;
+		uploadLogData(macAdd, uploadAdd, devNickName, lightChannelArray, NEW_LIGHT_TABLE);
 	}
 	
-	private static JSONArray tempChannelArray = null;
-	private static final String[] tempChannelArrayElements = {"temperature"};
+	private static String tempChannelArray = "[\"temperature\"]";
 	
 	public void uploadTemperatures(String macAdd, String uploadAdd, String devNickName){
-		
-		if (tempChannelArray == null){
-			tempChannelArray = new JSONArray();
-			for (int i = 0; i < tempChannelArrayElements.length; i++){
-				tempChannelArray.put(tempChannelArrayElements[i]);
-			}
-		}
-		
-		
-		Cursor c = mDb.query(NEW_TEMP_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
-		if (!c.moveToFirst()){
-			c.close();
-			return;
-		}
-		
-		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, tempChannelArray.toString(), c);
-		c.close();
-		if (lastId >= 0){
-			long start = System.currentTimeMillis();
-			mDb.delete(NEW_TEMP_TABLE, KEY_ID + "<=" + lastId, null);
-			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
-		}
-	    return;
+		uploadLogData(macAdd, uploadAdd, devNickName, tempChannelArray, NEW_TEMP_TABLE);
 	}
 	
-	private static JSONArray wifiChannelArray = null;
-	private static JSONObject wifiSpecs = null;
-	private static final String[] wifiChannelArrayElements = {"SSID", "BSSID"};
+	private static String wifiChannelArray = "[\"SSID\",\"BSSID\",\"capabilities\",\"frequency\",\"level\"]";
+	private static String wifiSpecs = "{\"SSID\":{\"type\":\"String\"},\"BSSID\":{\"type\":\"String\"},\"capabilities\":{\"type\":\"String\"}}";
 	
-	public void uploadWifis(String macAdd, String uploadAdd, String devNickName){
-		
-		if (wifiChannelArray == null){
-			wifiChannelArray = new JSONArray();
-			for (int i = 0; i < wifiChannelArrayElements.length; i++){
-				wifiChannelArray.put(wifiChannelArrayElements[i]);
-			}
-		}
-		
-		if (wifiSpecs == null){
-			wifiSpecs = new JSONObject();
-		 	try {
-		 		JSONObject ssidInfo = new JSONObject();
-			 	ssidInfo.put("type", "String");
-				wifiSpecs.put("SSID", ssidInfo);
-				wifiSpecs.put("BSSID", ssidInfo);
-			} catch (JSONException e) {
-			}
-		 	
-		}
-		
-		
-		Cursor c = mDb.query(NEW_WIFI_TABLE, new String[] {KEY_ID, KEY_DATA}, null, null, null, null, KEY_ID, "20");
-		if (!c.moveToFirst()){
-			c.close();
-			return;
-		}
-		
-		long lastId = uploadLogData(macAdd, uploadAdd, devNickName, wifiChannelArray.toString(), wifiSpecs.toString(), c);
-		c.close();
-		if (lastId >= 0){
-			long start = System.currentTimeMillis();
-			mDb.delete(NEW_WIFI_TABLE, KEY_ID + "<=" + lastId, null);
-			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
-		}
-	    return;
+	public void uploadWifis(String macAdd, String uploadAdd, String devNickName){		
+		uploadLogData(macAdd, uploadAdd, devNickName, wifiChannelArray, wifiSpecs, NEW_WIFI_TABLE);
 	}
 	
-	public boolean uploadPhoto(String macAdd, String uploadAdd, String devNickName, final CameraReview camRev, final long id){
+	private static String barcodeChannelArray = "[\"UPC\"]";
+	private static String barcodeSpecs = "{\"UPC\":{\"type\":\"String\"}}";
+	
+	public void uploadBarcodes(String macAdd, String uploadAdd, String devNickName){
+		uploadLogData(macAdd, uploadAdd, devNickName, barcodeChannelArray, barcodeSpecs, NEW_BC_TABLE);
+	}
+	
+	public void uploadComment(String macAdd, String uploadAdd, String devNickName, long id){
+		Cursor c = fetchComment(id);
+		if (c == null)
+			return;
+		String comment = c.getString(c.getColumnIndex(KEY_DATA));
+		String timeRange = "{\"begin\":" + (id / 1000.0) + ",\"end\":" + (id / 1000.0) + "}";
+		c.close();
+		long start = System.currentTimeMillis();
+		if (uploadData(uploadAdd, macAdd, devNickName, null, null, comment, timeRange, null)){
+			btStats.addTimeSpentUploadingData(System.currentTimeMillis() - start);
+			btStats.out.println("Comment " + id + " uploaded!");
+			start = System.currentTimeMillis();
+			deleteComment(id);
+			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
+		}
+		else{
+			btStats.addTimeSpentUploadingData(System.currentTimeMillis() - start);
+			btStats.out.println("Comment failed to upload!");
+		}
+	}
+	
+	public boolean uploadPhoto(String macAdd, String uploadAdd, String devNickName, final long id){
 		Cursor c = fetchPicture(id);
 		if (!c.moveToFirst()){
 			c.close();
 			return false;
 		}
 		String picFileName = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_PIC));
+		String comment = c.getString(c.getColumnIndex(DbAdapter.PIX_KEY_COMMENT));
+		long timestamp = c.getLong(c.getColumnIndex(DbAdapter.PIX_KEY_TIME));
 	    c.close();
 	    
 	    try{
@@ -806,6 +1142,10 @@ public class DbAdapter {
 			reqEntity.addPart("device_class",new StringBody(android.os.Build.MODEL));
 			reqEntity.addPart("dev_nickname",new StringBody(devNickName));
 			reqEntity.addPart("photo",bin);
+			String timeRange = "{\"begin\":" + (timestamp / 1000.0) + ",\"end\":" + (timestamp / 1000.0) + "}";
+			reqEntity.addPart("timerange",new StringBody(timeRange));
+			if (comment != null)
+				reqEntity.addPart("comment",new StringBody(comment));
 			
 			HttpClient mHttpClient = new DefaultHttpClient();
 	    	HttpPost postToServer = new HttpPost(uploadAdd);
@@ -818,13 +1158,7 @@ public class DbAdapter {
 			btStats.logBytesUploaded(bytes, overhead, status.getStatusCode());
 			if (status.getStatusCode() >= 200 && status.getStatusCode() < 300){
 				setPictureUploadState(id,DbAdapter.PIC_UPLOADED);
-				if (camRev != null){
-					camRev.runOnUiThread(new Runnable(){
-						public void run(){
-							camRev.onImageUploaded(id);
-						}
-					});
-				}
+				deletePicture(id);
 				return true;
 			}
 	    }
@@ -833,11 +1167,12 @@ public class DbAdapter {
 	    return false;
 	}
 	
-	private long uploadLogData(String macAdd, String uploadAdd, String devNickName, String channels, Cursor dataCursor){
-		return uploadLogData(macAdd, uploadAdd, devNickName, channels, null, dataCursor);
+	private void uploadLogData(String macAdd, String uploadAdd, String devNickName, String channels, String dbName){
+		uploadLogData(macAdd, uploadAdd, devNickName, channels, null, dbName);
+		return;
 	}
 	
-	private long uploadLogData(String macAdd, String uploadAdd, String devNickName, String channels, String channelSpecs, Cursor dataCursor){
+	private void uploadLogData(String macAdd, String uploadAdd, String devNickName, String channels, String channelSpecs, String dbName){
 		StringBuffer dataToUpload = new StringBuffer();
 		boolean first = true;
 		
@@ -845,9 +1180,18 @@ public class DbAdapter {
 		
 		long start = System.currentTimeMillis();
 		
+		Cursor dataCursor = mDb.query(dbName, new String[] {KEY_TIME, KEY_DATA}, null, null, null, null, KEY_TIME, "20");
+		if (dataCursor == null){
+			btStats.out.println("query of table " + dbName + " returned null!");
+			return;
+		}
+		if (!dataCursor.moveToFirst()){
+			dataCursor.close();
+			return;
+		}
 		while (!dataCursor.isAfterLast()){
 			String curData = dataCursor.getString(dataCursor.getColumnIndex(KEY_DATA));
-			lastId = dataCursor.getLong(dataCursor.getColumnIndex(KEY_ID));
+			lastId = dataCursor.getLong(dataCursor.getColumnIndex(KEY_TIME));
 			if (first){
 				dataToUpload.append(curData);
 				first = false;
@@ -859,30 +1203,73 @@ public class DbAdapter {
 			}
 			dataCursor.moveToNext();
 		}
+		dataCursor.close();
 		String dataString = dataToUpload.toString();
 		btStats.addTimeSpentGatheringAndJoining(System.currentTimeMillis() - start);
-		if (uploadData(uploadAdd, macAdd, devNickName, channels, channelSpecs, dataString))
-			return lastId;
-		return -1;
+		if (lastId >= 0){
+			start = System.currentTimeMillis();
+			mDb.delete(dbName, KEY_TIME + "<=" + lastId, null);
+			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
+		}
+		uploadData(uploadAdd, macAdd, devNickName, channels, channelSpecs, dataString);
+		return;
+	}
+	
+	private static final String[] genericTables = {NEW_LOC_TABLE,NEW_ACC_TABLE,NEW_WIFI_TABLE,NEW_GYRO_TABLE,NEW_LIGHT_TABLE,NEW_TEMP_TABLE,NEW_ORNT_TABLE}; 
+	
+	public long getOldestTime(){
+		long oldestTime = System.currentTimeMillis();
+		for (String table : genericTables){
+			Cursor c = mDb.query(table, new String[]{KEY_TIME}, null, null, null, null, KEY_TIME, "1");
+			if (c != null){
+				if (c.moveToFirst()){
+					long curTime = c.getLong(0);
+					if (curTime < oldestTime)
+						oldestTime = curTime;
+				}
+				c.close();
+			}
+		}
+		
+		Cursor c = mDb.query(PIX_TABLE, new String[]{PIX_KEY_TIME}, null, null, null, null, PIX_KEY_ID,"1");
+		if (c != null){
+			if (c.moveToFirst()){
+				long curTime = c.getLong(0);
+				if (curTime < oldestTime)
+					oldestTime = curTime;
+			}
+			c.close();
+		}
+		
+		return oldestTime;
 	}
 	
 	private boolean uploadData(String uploadAdd, String macAdd, String devNickName, String channels, String channelSpecs, String data){
+		return uploadData(uploadAdd,macAdd,devNickName,channels,channelSpecs,null,null,data);
+	}
+	
+	private boolean uploadData(String uploadAdd, String macAdd, String devNickName, String channels, String channelSpecs, String comment, String timeRange, String data){
 		long start = System.currentTimeMillis();
 		try {
 			HttpEntity reqEntity = null;
-			if (data.length() > 1024 * 5){ //multipart seems to be preferable in majority of situations
+			//if (data.length() > 1024 * 5){ //multipart seems to be preferable in majority of situations
 	    		MultipartEntity mPartEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
 	    		mPartEntity.addPart("device_id", new StringBody(macAdd));
 	    		mPartEntity.addPart("timezone", new StringBody("UTC"));
 	    		mPartEntity.addPart("device_class", new StringBody(android.os.Build.MODEL));
 	    		mPartEntity.addPart("dev_nickname", new StringBody(devNickName));
-	    		mPartEntity.addPart("channel_names", new StringBody(channels));
-		    	if (channelSpecs != null){
+	    		if (channels != null)
+	    			mPartEntity.addPart("channel_names", new StringBody(channels));
+		    	if (channelSpecs != null)
 		    		mPartEntity.addPart("channel_specs",new StringBody(channelSpecs));
-		    	}
-		    	mPartEntity.addPart("data", new StringBody(data));
+		    	if (data != null)
+		    		mPartEntity.addPart("data", new StringBody(data));
+		    	if (comment != null)
+		    		mPartEntity.addPart("comment", new StringBody(comment));
+		    	if (timeRange != null)
+		    		mPartEntity.addPart("timerange", new StringBody(timeRange));
 		    	reqEntity = mPartEntity;
-			}
+			/*}
 			else{
 				List<NameValuePair> postParams = new LinkedList<NameValuePair>();
 				postParams.add(new BasicNameValuePair("device_id",macAdd));
@@ -895,13 +1282,12 @@ public class DbAdapter {
 				}
 				postParams.add(new BasicNameValuePair("data", data));
 				reqEntity = new UrlEncodedFormEntity(postParams);
-			}
-	    	HttpClient mHttpClient = new DefaultHttpClient();
+			}*/
 	    	HttpPost postToServer = new HttpPost(uploadAdd);
     		postToServer.setEntity(reqEntity);
     		HttpResponse response = mHttpClient.execute(postToServer);
     		int statusCode = response.getStatusLine().getStatusCode();
-    		long bytes = data.length();
+    		long bytes = (data != null ? data.length() : 0) + (comment != null ? comment.length() : 0);
     		long overhead = reqEntity.getContentLength() - bytes;
     		btStats.logBytesUploaded(bytes, overhead, statusCode);
     		if (statusCode >= 200 && statusCode < 300){
