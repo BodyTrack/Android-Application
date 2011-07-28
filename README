@@ -1,11 +1,32 @@
-The BodyTrack Android application
+The BodyTrack Android Application
 
 This application is part of the BodyTrack project (bodytrack.org), which
 aims to provide the layperson a means to track variables that correspond to
-her health via various sensor apparati.
+their health via various sensor apparati. The application will store data
+temporarily until it successfully uploads it to the bodytrack server at which
+point the data will be deleted from the device to save space.
 
 This application tracks the data an Android phone's built-in sensors are
 well-suited to track:
--barcodes of food products
+-location
 -photos of meals
--locations
+-phone accelerations
+-nearby wifi access points
+-illuminance
+-temperature
+-phone orientation
+-various comments
+
+How to use:
+The first time you launch the application you will be prompted to configure the app. From the
+configuration page you may set the username and password of you bodytrack.org account and the nickname
+that will show up on the website for your phone. Additionally you can configure power options to help
+preserve the battery life of your phone and storage preferences to optionally store data on external
+storage.
+
+After configuration use the back button to return to the app's main screen. From here you can enable/disable
+any sensor by simply checking or unchecking its check box. Once enabled sensors will continue to log data
+after you leave the application. Also from the main menu you may use the "take a new photo" and "log a comment"
+buttons to take photos and log comments respectively. You can also use the menu button to get back to the
+configuration page to change settings.
+
