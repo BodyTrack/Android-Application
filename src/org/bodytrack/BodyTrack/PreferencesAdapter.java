@@ -201,26 +201,29 @@ public class PreferencesAdapter implements PreferencesChangeListener {
 		protected Void doInBackground(HomeTabbed... objs) {
 			caller = objs[0];
 			int uid = INVALID_USER_ID;
-				if (isNetworkEnabled()){
-					if (hasWebAccess()){
-						caller.runOnUiThread(new Runnable(){
-							public void run(){
-								obtainingUserIDDialog = new ProgressDialog(caller);
-								obtainingUserIDDialog.setMessage("Obtaining user id");
-								obtainingUserIDDialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
+			String oldUserName = prefs.getString("oldUserName", INVALID_USER_NAME);
+			String oldPassword = prefs.getString("oldPassword", INVALID_PASSWORD);
+			if (oldUserName.equals(getUserName()) && oldPassword.equals(getPassword()))
+				return null;
+			if (isNetworkEnabled()){
+				if (hasWebAccess()){
+					caller.runOnUiThread(new Runnable(){
+						public void run(){
+							obtainingUserIDDialog = new ProgressDialog(caller);
+							obtainingUserIDDialog.setMessage("Obtaining user id");
+							obtainingUserIDDialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
 
-						    	    @Override
-						    	    public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
-						    	        if (keyCode == KeyEvent.KEYCODE_SEARCH && event.getRepeatCount() == 0) {
-						    	            return true; // Pretend we processed it
-						    	        }
-						    	        return false; // Any other keys are still processed as normal
+					    	    public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
+					    	        if (keyCode == KeyEvent.KEYCODE_SEARCH && event.getRepeatCount() == 0) {
+					    	            return true; // Pretend we processed it
+					    	        }
+					    	        	return false; // Any other keys are still processed as normal
 						    	    }
-						    	});
-								obtainingUserIDDialog.setCancelable(false);
-								obtainingUserIDDialog.show();
-							}
-						});
+							});
+							obtainingUserIDDialog.setCancelable(false);
+							obtainingUserIDDialog.show();
+						}
+					});
 					try {
 						HttpClient mHttpClient = new DefaultHttpClient();
 						HttpPost postToServer = new HttpPost("http://" + getHost() + "/login.json");
@@ -255,6 +258,14 @@ public class PreferencesAdapter implements PreferencesChangeListener {
 				}
 			}
 			prefs.edit().putInt("userID", uid).commit();
+			if (uid == INVALID_USER_ID){
+				prefs.edit().putString("oldUserName", INVALID_USER_NAME).commit();
+				prefs.edit().putString("oldPassword", INVALID_PASSWORD).commit();
+			}
+			else{
+				prefs.edit().putString("oldUserName", getUserName()).commit();
+				prefs.edit().putString("oldPassword", getPassword()).commit();
+			}
 			return null;
 		}
 		
