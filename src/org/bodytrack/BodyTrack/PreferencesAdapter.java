@@ -28,6 +28,7 @@ import android.view.KeyEvent;
 public class PreferencesAdapter implements PreferencesChangeListener {
 	public static final int INVALID_USER_ID = -1;
 	public static final int DEFAULT_GPS_DELAY = 0;
+	public static final int DEFAULT_SENSOR_DELAY = 1;
 	public static final String INVALID_USER_NAME = "NO_USER_NAME";
 	public static final String INVALID_PASSWORD = "NO_PASSWORD";
 	
@@ -74,6 +75,21 @@ public class PreferencesAdapter implements PreferencesChangeListener {
 			index = DEFAULT_GPS_DELAY;
 		}
 		return index;
+	}
+	
+	public int getSensorDelay(){
+		int index;
+		try{
+			index = prefs.getInt("sensorDelay", DEFAULT_SENSOR_DELAY);
+		}
+		catch (Exception e){
+			index = DEFAULT_SENSOR_DELAY;
+		}
+		return index;
+	}
+	
+	public void setSensorDelay(int index){
+		prefs.edit().putInt("sensorDelay", index).commit();
 	}
 	
 	public void setGPSDelay(int index){

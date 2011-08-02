@@ -55,6 +55,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 	private final long minDistance = 0;
 	
 	private int gpsDelay;
+	private int sensorDelay;
 	
 	private boolean gpsIdleMode = false;
 	private boolean gpsNoFixSleepMode = false;
@@ -64,7 +65,9 @@ public class BTService extends Service implements PreferencesChangeListener{
 	
 	private boolean fixFound = false;
 	
-	private final static int SENSOR_DELAY = SensorManager.SENSOR_DELAY_NORMAL;
+	private final static int[] sensorDelays = {SensorManager.SENSOR_DELAY_UI, SensorManager.SENSOR_DELAY_NORMAL, 
+						SensorManager.SENSOR_DELAY_GAME, SensorManager.SENSOR_DELAY_FASTEST};
+	private final static String[] sensorDelayNames = {"Slow", "Normal", "Fast", "Fastest"};
 	
 	private Handler gpsHandler;
 	
@@ -77,55 +80,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 									"Every 15 minutes", "Every 20 Minutes", "Every Half Hour", "Every Hour"};
 	
 	private boolean lowBattery = false;
-	private boolean noTrackLowMode = false;
-	
-	public static String[] getAllGpsDelayNames(){
-		return gpsDelayNames.clone();
-	}
-	
-	
-	private static long getGPSDelayValue(int index){
-		try{
-			return gpsDelays[index];
-		}
-		catch (ArrayIndexOutOfBoundsException e){
-			return gpsDelays[0];
-		}
-	}
-	
-	public static String getGPSDelayName(int index){
-		try{
-			return gpsDelayNames[index];
-		}
-		catch (ArrayIndexOutOfBoundsException e){
-			return gpsDelayNames[0];
-		}
-	}
-	
-	public boolean canSplitAcc(){
-		return senseMan.getDefaultSensor(SENSOR_TYPE_GRAVITY) != null && senseMan.getDefaultSensor(SENSOR_TYPE_LINEAR_ACCELERATION) != null;
-	}
-	
-	private void setGPSDelay(int index){
-		if (gpsDelay != index){
-			gpsDelay = index;
-			prefAdapter.setGPSDelay(index);
-			if (isLogging(GPS_LOGGING)){
-				locMan.removeUpdates(locListen);
-				if (!gpsIdleMode){
-					locMan.requestLocationUpdates(LocationManager.GPS_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
-					invokeGPSSleepLogic();
-				}
-				locMan.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
-			}
-			btStats.out.println("Updated gps refresh to " + getGPSDelayName(index));
-		}
-	}
-	
-	private int getGPSDelayIndex(){
-		return gpsDelay;
-	}
-	
+	private boolean noTrackLowMode = false;	
 	
 	
 	private LocationManager locMan;
@@ -171,7 +126,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 	private boolean foregroundEnabled = false;
 	
 	private String[] logNames = {"GPS", "Accelerometer", "Gyroscope", "WiFi", "Temperature",
-			"Orientation", "Illuminance"
+			"Orientation", "Illuminance", "Barometric Pressure"
 	};
 	
 	private List<List<Object[]>> dataLists = new ArrayList<List<Object[]>>();
@@ -221,6 +176,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 	    prefAdapter.addPreferencesChangeListener(this);
 	    
 	    gpsDelay = prefAdapter.getGPSDelay();
+	    sensorDelay = prefAdapter.getSensorDelay();
 	    
 	    dbUpdaterTask = new DbDataWriter();
 	    dbUpdaterTask.execute();
@@ -231,6 +187,104 @@ public class BTService extends Service implements PreferencesChangeListener{
 	    
 	    new UploaderTask().execute();
 	}
+	
+	public static String[] getAllGpsDelayNames(){
+		return gpsDelayNames.clone();
+	}
+	
+	
+	public static long getGPSDelayValue(int index){
+		try{
+			return gpsDelays[index];
+		}
+		catch (ArrayIndexOutOfBoundsException e){
+			return gpsDelays[0];
+		}
+	}
+	
+	public static String getGPSDelayName(int index){
+		try{
+			return gpsDelayNames[index];
+		}
+		catch (ArrayIndexOutOfBoundsException e){
+			return gpsDelayNames[0];
+		}
+	}
+	
+	public boolean canSplitAcc(){
+		return senseMan.getDefaultSensor(SENSOR_TYPE_GRAVITY) != null && senseMan.getDefaultSensor(SENSOR_TYPE_LINEAR_ACCELERATION) != null;
+	}
+	
+	private void setGPSDelay(int index){
+		if (gpsDelay != index){
+			gpsDelay = index;
+			prefAdapter.setGPSDelay(index);
+			if (isLogging(GPS_LOGGING)){
+				locMan.removeUpdates(locListen);
+				if (!gpsIdleMode){
+					locMan.requestLocationUpdates(LocationManager.GPS_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
+					invokeGPSSleepLogic();
+				}
+				locMan.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, getGPSDelayValue(gpsDelay), minDistance, locListen);
+			}
+			btStats.out.println("Updated gps refresh to " + getGPSDelayName(index));
+		}
+	}
+	
+	private int getGPSDelayIndex(){
+		return gpsDelay;
+	}
+	
+	private int getSensorDelay(){
+		return sensorDelay;
+	}
+	
+	public static String[] getAllSensorDelayNames(){
+		return sensorDelayNames.clone();
+	}
+	
+	public static String getSensorDelayName(int index){
+		try{
+			return sensorDelayNames[index];
+		}
+		catch (ArrayIndexOutOfBoundsException e){
+			return sensorDelayNames[0];
+		}
+	}
+	
+	public static int getSensorDelayValue(int index){
+		try{
+			return sensorDelays[index];
+		}
+		catch (ArrayIndexOutOfBoundsException e){
+			return sensorDelays[0];
+		}
+	}
+	
+	
+	
+	private void setSensorDelay(int index){
+		if (sensorDelay != index){
+			gpsDelay = index;
+			prefAdapter.setSensorDelay(index);
+			for (int i = 0; i < NUM_LOGGERS; i++){
+				switch (i){
+					case GPS_LOGGING:
+					case WIFI_LOGGING:
+						break;
+					default:
+						if (isLogging(i)){
+							stopLogging(i);
+							startLogging(i);
+						}
+						break;
+				}
+				
+			}
+			btStats.out.println("Updated sensor refresh to " + getSensorDelayName(index));
+		}
+	}
+	
 	
 	/**
 	 * Run the service in the foreground so Android won't kill it.
@@ -307,14 +361,14 @@ public class BTService extends Service implements PreferencesChangeListener{
 				break;
 			case ACC_LOGGING:
 				if (!accSplitEnabled)
-					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) , SENSOR_DELAY);
+					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) , getSensorDelayValue(sensorDelay));
 				else{
-					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_GRAVITY), SENSOR_DELAY);
-					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_LINEAR_ACCELERATION), SENSOR_DELAY);
+					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_GRAVITY), getSensorDelayValue(sensorDelay));
+					senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_LINEAR_ACCELERATION), getSensorDelayValue(sensorDelay));
 				}
 				break;
 			case GYRO_LOGGING:
-				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_GYROSCOPE), SENSOR_DELAY);
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_GYROSCOPE), getSensorDelayValue(sensorDelay));
 				break;
 			case WIFI_LOGGING:
 				registerReceiver(wifiReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
@@ -322,16 +376,16 @@ public class BTService extends Service implements PreferencesChangeListener{
 				curWifiScanner.execute();
 				break;
 			case ORNT_LOGGING:
-				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ORIENTATION), SENSOR_DELAY);
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ORIENTATION), getSensorDelayValue(sensorDelay));
 				break;
 			case LIGHT_LOGGING:
-				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_LIGHT), SENSOR_DELAY);
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_LIGHT), getSensorDelayValue(sensorDelay));
 				break;
 			case TEMP_LOGGING:
-				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_TEMPERATURE), SENSOR_DELAY);
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_TEMPERATURE), getSensorDelayValue(sensorDelay));
 				break;
 			case PRESS_LOGGING:
-				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_PRESSURE), SENSOR_DELAY);
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_PRESSURE), getSensorDelayValue(sensorDelay));
 				break;
 			default:
 				return;
@@ -593,12 +647,12 @@ public class BTService extends Service implements PreferencesChangeListener{
 		accSplitEnabled = enabled;
 		if (isLogging[ACC_LOGGING]){
 			if (accSplitEnabled){
-				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_GRAVITY), SENSOR_DELAY);
-				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_LINEAR_ACCELERATION), SENSOR_DELAY);
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_GRAVITY), getSensorDelayValue(sensorDelay));
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_LINEAR_ACCELERATION), getSensorDelayValue(sensorDelay));
 				senseMan.unregisterListener(sensorListener,senseMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER));
 			}
 			else{
-				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SENSOR_DELAY);
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), getSensorDelayValue(sensorDelay));
 				senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_GRAVITY));
 				senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(SENSOR_TYPE_LINEAR_ACCELERATION));
 			}
@@ -909,6 +963,16 @@ public class BTService extends Service implements PreferencesChangeListener{
 		@Override
 		public boolean isSplittingAcc() throws RemoteException {
 			return BTService.this.isSplittingAcc();
+		}
+
+		@Override
+		public void setSensorDelay(int index) throws RemoteException {
+			BTService.this.setSensorDelay(index);
+		}
+
+		@Override
+		public int getSensorDelayIndex() throws RemoteException {
+			return BTService.this.getSensorDelay();
 		}
 	};
 	

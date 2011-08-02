@@ -13,4 +13,6 @@ interface IBTSvcRPC {
 	int getGPSDelayIndex();
 	void setAccSplitting(boolean enabled);
 	boolean isSplittingAcc();
+	void setSensorDelay(int index);
+	int getSensorDelayIndex();
 }

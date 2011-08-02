@@ -21,7 +21,11 @@
 		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startLight" android:id="@+id/toggleLight"></CheckBox>
 		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startTemp" android:id="@+id/toggleTemp"></CheckBox>
 		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startOrnt" android:id="@+id/toggleOrnt"></CheckBox>
-		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startPress" android:id="@+id/togglePress"></CheckBox>
+		    <CheckBox android:text="@string/startPress" android:id="@+id/togglePress" android:layout_width="fill_parent" android:layout_height="wrap_content"></CheckBox>
+		    <LinearLayout android:layout_width="fill_parent" android:id="@+id/linearLayout5" android:layout_height="wrap_content">
+		        <TextView android:id="@+id/textView1" android:layout_width="wrap_content" android:layout_height="fill_parent" android:gravity="center_vertical" android:text="@string/sensorSetting"></TextView>
+		        <Spinner android:layout_width="wrap_content" android:layout_weight="1" android:layout_height="wrap_content" android:id="@+id/sensorDelaySpinner"></Spinner>
+		    </LinearLayout>
 		</LinearLayout>
 	</ScrollView>
 	<LinearLayout android:layout_width="fill_parent" android:id="@+id/linearLayout4" android:layout_height="wrap_content">

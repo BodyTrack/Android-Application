@@ -79,6 +79,7 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 	private TextView backLogRate;
 	private Button takePic, enableAll, disableAll, logComment;
 	private Spinner gpsUpdateRatePicker;
+	private Spinner sensorUpdateRatePicker;
 	private LinearLayout gpsSettingsPane;
 
 	private IBTSvcRPC btBinder;
@@ -163,6 +164,14 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		gpsUpdateRatePicker.setAdapter(adapter);
 		
 		gpsUpdateRatePicker.setOnItemSelectedListener(this);
+		
+		sensorUpdateRatePicker = (Spinner)findViewById(R.id.sensorDelaySpinner);
+		
+		adapter = new ArrayAdapter<String>(getApplicationContext(), android.R.layout.simple_spinner_item, BTService.getAllSensorDelayNames());
+		adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+		sensorUpdateRatePicker.setAdapter(adapter);
+		
+		sensorUpdateRatePicker.setOnItemSelectedListener(this);
 		
 		gpsSettingsPane = (LinearLayout)findViewById(R.id.gpsSettingsPane);
 		gpsSettingsPane.setVisibility(View.GONE);
@@ -571,9 +580,17 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 	@Override
 	public void onItemSelected(AdapterView<?> parent, View view, int pos,
 			long id) {
-		try {
-			btBinder.setGPSDelay(pos);
-		} catch (Exception e) {
+		if (parent == gpsUpdateRatePicker){
+			try {
+				btBinder.setGPSDelay(pos);
+			} catch (Exception e) {
+			}
+		}
+		else if (parent == sensorUpdateRatePicker){
+			try {
+				btBinder.setSensorDelay(pos);
+			} catch (Exception e) {
+			}
 		}
 	}
 

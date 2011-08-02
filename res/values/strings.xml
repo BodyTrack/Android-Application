@@ -126,4 +126,5 @@
   	<string name="serverPortSummary">Server Port</string>
   	<string name="splitAcc">Split Gravity From Linear Acceleration</string>
   	<string name="storagePrefs">Storage Preferences</string>
+  	<string name="sensorSetting">Sensor Delay: </string>
 </resources>
