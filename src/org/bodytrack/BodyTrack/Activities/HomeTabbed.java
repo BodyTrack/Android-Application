@@ -73,6 +73,7 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 	private CheckBox toggleTemp;
 	private CheckBox toggleOrnt;
 	private CheckBox toggleGPS;
+	private CheckBox togglePress;
 	private CheckBox splitAcc;
 	private TextView backLogLeft;
 	private TextView backLogRate;
@@ -121,6 +122,7 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		toggleTemp = (CheckBox)findViewById(R.id.toggleTemp);
 		toggleOrnt = (CheckBox)findViewById(R.id.toggleOrnt);
 		toggleGPS = (CheckBox)findViewById(R.id.toggleGPS);
+		togglePress = (CheckBox)findViewById(R.id.togglePress);
 		
 		splitAcc = (CheckBox)findViewById(R.id.splitAcc);
 		
@@ -135,6 +137,7 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		toggleTemp.setVisibility(View.GONE);
 		toggleOrnt.setVisibility(View.GONE);
 		splitAcc.setVisibility(View.GONE);
+		togglePress.setVisibility(View.GONE);
 		
 		toggleWifi.setEnabled(false);
 		toggleGPS.setEnabled(false);
@@ -151,6 +154,7 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		disableAll.setOnClickListener(this);
 		logComment.setOnClickListener(this);
 		splitAcc.setOnClickListener(this);
+		togglePress.setOnClickListener(this);
 		
 		gpsUpdateRatePicker = (Spinner)findViewById(R.id.GPSRatePicker);
 		
@@ -308,12 +312,20 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 			try {
 				if (btBinder.isLogging(BTService.ACC_LOGGING)) {
 					btBinder.stopLogging(BTService.ACC_LOGGING);
+					splitAcc.setVisibility(View.GONE);
 				} else {
 					btBinder.startLogging(BTService.ACC_LOGGING);
+					if (btBinder.canSplitAcc())
+						splitAcc.setVisibility(View.VISIBLE);
 				}
 			} catch (RemoteException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
+			}
+		} else if (v == splitAcc){
+			try {
+				btBinder.setAccSplitting(!btBinder.isSplittingAcc());
+			} catch (RemoteException e) {
 			}
 		} else if (v == toggleGyro) {
 			try {
@@ -378,6 +390,17 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 				} else {
 					btBinder.startLogging(BTService.GPS_LOGGING);
 					gpsSettingsPane.setVisibility(View.VISIBLE);
+				}
+			} catch (RemoteException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} else if (v == togglePress){
+			try {
+				if (btBinder.isLogging(BTService.PRESS_LOGGING)) {
+					btBinder.stopLogging(BTService.PRESS_LOGGING);
+				} else {
+					btBinder.startLogging(BTService.PRESS_LOGGING);
 				}
 			} catch (RemoteException e) {
 				// TODO Auto-generated catch block
@@ -581,11 +604,11 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 					time /= 60;
 					unit = "min";
 				}
+				backLogLeft.setText(time + " " + unit + " of backlog");
 				if (!prefAdapter.isNetworkEnabled()){
 					backLogRate.setText("Network is disabled!");
 				}
 				else{
-					backLogLeft.setText(time + " " + unit + " of backlog");
 					if (rate > 0){
 						backLogRate.setText("growing at " + new DecimalFormat("0.00").format(rate) + " s of log/s");
 					}
@@ -609,6 +632,8 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 			toggleTemp.setChecked(btBinder.isLogging(BTService.TEMP_LOGGING));
 			toggleOrnt.setChecked(btBinder.isLogging(BTService.ORNT_LOGGING));
 			toggleGPS.setChecked(btBinder.isLogging(BTService.GPS_LOGGING));
+			togglePress.setChecked(btBinder.isLogging(BTService.PRESS_LOGGING));
+			splitAcc.setChecked(btBinder.isSplittingAcc());
 
 			gpsSettingsPane.setVisibility(btBinder
 					.isLogging(BTService.GPS_LOGGING) ? View.VISIBLE
@@ -629,6 +654,8 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 			toggleOrnt
 					.setVisibility(btBinder.canLog(BTService.ORNT_LOGGING) ? View.VISIBLE
 							: View.GONE);
+			
+			togglePress.setVisibility(btBinder.canLog(BTService.PRESS_LOGGING) ? View.VISIBLE : View.GONE);
 			
 			splitAcc.setVisibility((btBinder.isLogging(BTService.ACC_LOGGING) && btBinder.canSplitAcc()) ? View.VISIBLE : View.GONE);
 

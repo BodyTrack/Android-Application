@@ -18,7 +18,7 @@
 		<CheckBoxPreference android:title="@string/noCommentsOnPhotos" android:key="noCommentsOnPhotos" android:summary="@string/noCommentsOnPhotosSummary"></CheckBoxPreference>
 	</PreferenceCategory> -->
 	<PreferenceCategory android:title="@string/storagePrefs">
-		<CheckBoxPreference android:title="Store Sensor Data on External Storage" android:defaultValue="false" android:summary="saves sensor data to external storage device rather than internal memory." android:key="dbOnExternalStorage"></CheckBoxPreference>
+		<CheckBoxPreference android:title="Store Sensor Data on External Storage" android:summary="saves sensor data to external storage device rather than internal memory." android:key="dbOnExternalStorage" android:defaultValue="true"></CheckBoxPreference>
 	</PreferenceCategory>
 	
 </PreferenceScreen>

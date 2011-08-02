@@ -12,7 +12,7 @@
 		    <CheckBox android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/toggleGPS" android:text="@string/startGPS"></CheckBox>
 		    <LinearLayout android:id="@+id/gpsSettingsPane" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_width="fill_parent">
 		        <TextView android:id="@+id/freqDisplay" android:text="@string/Frequency" android:layout_height="fill_parent" android:gravity="center_vertical|center_horizontal" android:layout_width="fill_parent" android:layout_weight="3"></TextView>
-		        <Spinner android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/GPSRatePicker" android:layout_gravity="center" android:layout_weight="1"></Spinner>
+		        <Spinner android:layout_weight="1" android:layout_width="fill_parent" android:layout_gravity="center" android:layout_height="wrap_content" android:id="@+id/GPSRatePicker"></Spinner>
 		    </LinearLayout>
 		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/toggleAcc" android:text="@string/start_acc"></CheckBox>
 		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/splitAcc" android:layout_marginLeft="25dip" android:id="@+id/splitAcc"></CheckBox>
@@ -21,6 +21,7 @@
 		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startLight" android:id="@+id/toggleLight"></CheckBox>
 		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startTemp" android:id="@+id/toggleTemp"></CheckBox>
 		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startOrnt" android:id="@+id/toggleOrnt"></CheckBox>
+		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startPress" android:id="@+id/togglePress"></CheckBox>
 		</LinearLayout>
 	</ScrollView>
 	<LinearLayout android:layout_width="fill_parent" android:id="@+id/linearLayout4" android:layout_height="wrap_content">

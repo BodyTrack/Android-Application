@@ -52,7 +52,7 @@ public class DbAdapter {
 	
 	private static final String DB_NAME = "BodytrackDB";
 	private static final String EXTERNAL_DB_NAME = Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + DB_NAME;
-	private static final int DB_VERSION = 5;
+	private static final int DB_VERSION = 6;
 	
 	public static final int PIC_NOT_UPLOADED = 0;
 	public static final int PIC_PENDING_UPLOAD = 1;
@@ -156,6 +156,13 @@ public class DbAdapter {
 	   KEY_TIME + " integer primary key, " +
 		KEY_DATA + " String not null);";
 	   
+	 //pressure table
+	   public static final String PRESS_TABLE = "pressure";
+	   
+	   private static final String PRESS_TABLE_CREATE = "create table " + PRESS_TABLE + " (" +
+	   KEY_TIME + " integer primary key, " +
+		KEY_DATA + " String not null);";
+	   
 	 //new barcode table
 	   public static final String NEW_BC_TABLE = "newbc";
 	   
@@ -220,6 +227,7 @@ public class DbAdapter {
 			db.execSQL(QUICK_COMMENT_TABLE_CREATE);
 			db.execSQL(GRAV_ACC_TABLE_CREATE);
 			db.execSQL(LINE_ACC_TABLE_CREATE);
+			db.execSQL(PRESS_TABLE_CREATE);
 		}
 
 		@Override
@@ -234,6 +242,8 @@ public class DbAdapter {
 				case 4://linear and gravity acceleration tables missing
 					db.execSQL(GRAV_ACC_TABLE_CREATE);
 					db.execSQL(LINE_ACC_TABLE_CREATE);
+				case 5://pressure table missing
+					db.execSQL(PRESS_TABLE_CREATE);
 				default:
 					btStats.out.println("Upgraded database from " + oldVersion + " to " + newVersion);
 					break;
@@ -347,6 +357,7 @@ public class DbAdapter {
 		count += copyGenericTable(LOG_COMMENT_TABLE,oDb);
 		count += copyGenericTable(GRAV_ACC_TABLE,oDb);
 		count += copyGenericTable(LINE_ACC_TABLE,oDb);
+		count += copyGenericTable(PRESS_TABLE,oDb);
 		count += copyPictureTable(oDb); //move picture table
 		count += copyQuickCommentTable(oDb); //move quick comment table
 		oDb.close();
@@ -774,6 +785,40 @@ public class DbAdapter {
 		return retVal;
 	}
 	
+	public long writePressures(Object[][] data){
+		if (data.length == 0)
+			return 0;
+		long start = System.currentTimeMillis();
+		StringBuilder dataArray = new StringBuilder("[");
+		boolean first = true;
+		long time = 0;
+		for (Object[] curDat : data){
+			if (first)
+				first = false;
+			else
+				dataArray.append(",");
+			dataArray.append("[");
+			if (time == 0)
+				time = (Long) curDat[0];
+			dataArray.append(((Long) curDat[0]) / 1000.0);
+			dataArray.append(",").append((Float) curDat[1]);
+			dataArray.append("]");
+		}
+		dataArray.append("]");
+		String jsonData = dataArray.toString();
+		long finish = System.currentTimeMillis();
+		btStats.addTimeSpentConvertingToJSON(finish - start);
+		start = finish;
+		ContentValues locToPut = new ContentValues();
+		locToPut.put(KEY_DATA, jsonData);
+		locToPut.put(KEY_TIME, time);
+		long retVal = mDb.insert(PRESS_TABLE, null, locToPut);
+		finish = System.currentTimeMillis();
+		btStats.addTimeSpentPushingIntoDB(finish - start);
+		btStats.addDbWrite();
+		return retVal;
+	}
+	
 	public long writeLights(Object[][] data){
 		if (data.length == 0)
 			return 0;
@@ -1061,6 +1106,12 @@ public class DbAdapter {
 		uploadLogData(macAdd, uploadAdd, devNickName, ornChannelArray, NEW_ORNT_TABLE);
 	}
 	
+	private static String pressureChannelArray = "[\"pressure\"]";
+	
+	public void uploadPressures(String macAdd, String uploadAdd, String devNickName){
+		uploadLogData(macAdd, uploadAdd, devNickName, pressureChannelArray, PRESS_TABLE);
+	}
+	
 	private static String lightChannelArray = "[\"illuminance\"]";
 	
 	public void uploadIlluminances(String macAdd, String uploadAdd, String devNickName){
@@ -1215,7 +1266,7 @@ public class DbAdapter {
 		return;
 	}
 	
-	private static final String[] genericTables = {NEW_LOC_TABLE,NEW_ACC_TABLE,NEW_WIFI_TABLE,NEW_GYRO_TABLE,NEW_LIGHT_TABLE,NEW_TEMP_TABLE,NEW_ORNT_TABLE}; 
+	private static final String[] genericTables = {NEW_LOC_TABLE,NEW_ACC_TABLE,NEW_WIFI_TABLE,NEW_GYRO_TABLE,NEW_LIGHT_TABLE,NEW_TEMP_TABLE,NEW_ORNT_TABLE,GRAV_ACC_TABLE,LINE_ACC_TABLE,PRESS_TABLE}; 
 	
 	public long getOldestTime(){
 		long oldestTime = System.currentTimeMillis();

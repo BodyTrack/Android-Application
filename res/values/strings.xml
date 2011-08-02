@@ -89,6 +89,7 @@
   	<string name="startLight">IlluminanceTracking</string>
   	<string name="stopLight">Stop IlluminanceTracking</string>
   	<string name="startOrnt">Orientation Tracking</string>
+  	<string name="startPress">Barometric Pressure Tracking</string>
   	<string name="stopOrnt">Stop Orientation Tracking</string>
   	<string name="startGPS">GPS Tracking</string>
   	<string name="stopGPS">Stop GPS Tracking</string>

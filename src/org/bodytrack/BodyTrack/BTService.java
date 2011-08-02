@@ -154,7 +154,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 	private Object[] mStopForegroundArgs = new Object[1];
 	private static final int NOTIFICATION = 5;
 	
-	public static final int NUM_LOGGERS = 7;
+	public static final int NUM_LOGGERS = 8;
 	
 	public static final int GPS_LOGGING = 0;
 	public static final int ACC_LOGGING = 1;
@@ -163,6 +163,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 	public static final int TEMP_LOGGING = 4;
 	public static final int ORNT_LOGGING = 5;
 	public static final int LIGHT_LOGGING = 6;
+	public static final int PRESS_LOGGING = 7;
 	
 	private static final int GRAVITY_ACC = NUM_LOGGERS;
 	private static final int LINEAR_ACC = NUM_LOGGERS + 1;
@@ -329,6 +330,9 @@ public class BTService extends Service implements PreferencesChangeListener{
 			case TEMP_LOGGING:
 				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_TEMPERATURE), SENSOR_DELAY);
 				break;
+			case PRESS_LOGGING:
+				senseMan.registerListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_PRESSURE), SENSOR_DELAY);
+				break;
 			default:
 				return;
 		}
@@ -383,6 +387,9 @@ public class BTService extends Service implements PreferencesChangeListener{
 			case TEMP_LOGGING:
 				senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_TEMPERATURE));
 				break;
+			case PRESS_LOGGING:
+				senseMan.unregisterListener(sensorListener, senseMan.getDefaultSensor(Sensor.TYPE_PRESSURE));
+				break;
 			default:
 				return;
 		}
@@ -415,6 +422,8 @@ public class BTService extends Service implements PreferencesChangeListener{
 				return senseMan.getDefaultSensor(Sensor.TYPE_LIGHT) != null;
 			case TEMP_LOGGING:
 				return senseMan.getDefaultSensor(Sensor.TYPE_TEMPERATURE) != null;
+			case PRESS_LOGGING:
+				return senseMan.getDefaultSensor(Sensor.TYPE_PRESSURE) != null;
 			default:
 		}
 		return false;
@@ -554,6 +563,13 @@ public class BTService extends Service implements PreferencesChangeListener{
 		dataLists.get(LIGHT_LOGGING).add(data);
 	}
 	
+	private void queuePressure(long timestamp, float pressure){
+		Object[] data = new Object[2];
+		data[0] = timestamp;
+		data[1] = pressure;
+		dataLists.get(PRESS_LOGGING).add(data);
+	}
+	
 	private void queueTemp(long timestamp, float temp){
 		Object[] data = new Object[2];
 		data[0] = timestamp;
@@ -673,6 +689,12 @@ public class BTService extends Service implements PreferencesChangeListener{
 					if (isLogging[ACC_LOGGING]){
 						queueLinearAcceleration(System.currentTimeMillis(),event.values);
 					}
+					break;
+				case Sensor.TYPE_PRESSURE:
+					if (isLogging[PRESS_LOGGING]){
+						queuePressure(System.currentTimeMillis(),event.values[0]);
+					}
+					break;
 				default:
 			}
 		}
@@ -830,6 +852,9 @@ public class BTService extends Service implements PreferencesChangeListener{
 						case LINEAR_ACC:
 							dbAdapter.writeLinearAccelerations(data);
 							break;
+						case PRESS_LOGGING:
+							dbAdapter.writePressures(data);
+							break;
 					}
 				}				
 				try {
@@ -927,6 +952,10 @@ public class BTService extends Service implements PreferencesChangeListener{
 		 			//upload accelerometer data
 					if (allowedToUpload())
 						dbAdapter.uploadAccelerations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+					if (allowedToUpload())
+						dbAdapter.uploadGravityAccelerations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+					if (allowedToUpload())
+						dbAdapter.uploadLinearAccelerations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
 					
 					//upload gyroscope data
 					if (allowedToUpload())
@@ -948,8 +977,13 @@ public class BTService extends Service implements PreferencesChangeListener{
 					if (allowedToUpload())
 						dbAdapter.uploadWifis(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
 					
+					//upload barcodes
 					if (allowedToUpload())
 						dbAdapter.uploadBarcodes(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
+					
+					//upload pressure data
+					if (allowedToUpload())
+						dbAdapter.uploadPressures(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
 					
 		 			//upload 1 picture
 					if (allowedToUpload()){
