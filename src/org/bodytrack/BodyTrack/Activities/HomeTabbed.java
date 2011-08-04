@@ -611,7 +611,7 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 				}
 				else if (time > 3600 * 24){
 					time /= 3600 * 24;
-					unit = "day";
+					unit = "days";
 				}
 				else if (time > 3600){
 					time /= 3600;
@@ -680,6 +680,7 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 			toggleWifi.setEnabled(btBinder.canLog(BTService.WIFI_LOGGING));
 
 			gpsUpdateRatePicker.setSelection(btBinder.getGPSDelayIndex());
+			sensorUpdateRatePicker.setSelection(btBinder.getSensorDelayIndex());
 		} catch (Exception e) {
 		}
 	}

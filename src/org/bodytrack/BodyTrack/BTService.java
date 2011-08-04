@@ -80,7 +80,9 @@ public class BTService extends Service implements PreferencesChangeListener{
 									"Every 15 minutes", "Every 20 Minutes", "Every Half Hour", "Every Hour"};
 	
 	private boolean lowBattery = false;
+	private boolean lowStorage = false;
 	private boolean noTrackLowMode = false;	
+	private boolean noTrackLowStoreMode = false;
 	
 	
 	private LocationManager locMan;
@@ -183,6 +185,8 @@ public class BTService extends Service implements PreferencesChangeListener{
 	    
 	    registerReceiver(lowBatteryReceiver, new IntentFilter(Intent.ACTION_BATTERY_LOW));
 	    registerReceiver(batteryOkReceiver, new IntentFilter(Intent.ACTION_BATTERY_OKAY));
+	    registerReceiver(lowStorageReceiver, new IntentFilter(Intent.ACTION_DEVICE_STORAGE_LOW));
+	    registerReceiver(storageOkReceiver, new IntentFilter(Intent.ACTION_DEVICE_STORAGE_OK));
 	    registerReceiver(externalPowerReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
 	    
 	    new UploaderTask().execute();
@@ -265,7 +269,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 	
 	private void setSensorDelay(int index){
 		if (sensorDelay != index){
-			gpsDelay = index;
+			sensorDelay = index;
 			prefAdapter.setSensorDelay(index);
 			for (int i = 0; i < NUM_LOGGERS; i++){
 				switch (i){
@@ -274,8 +278,8 @@ public class BTService extends Service implements PreferencesChangeListener{
 						break;
 					default:
 						if (isLogging(i)){
-							stopLogging(i);
-							startLogging(i);
+							stopLoggingI(i);
+							startLoggingI(i);
 						}
 						break;
 				}
@@ -395,7 +399,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 	private void startLogging(int id) {
 		if (!canLog(id))
 			return;
-		if (!isLogging[id] && !noTrackLowMode)
+		if (!isLogging[id] && !noTrackLowMode && !noTrackLowStoreMode)
 			startLoggingI(id);
 		btStats.out.println(logNames[id] + " tracking enabled");
 		isLogging[id] = true;
@@ -810,6 +814,39 @@ public class BTService extends Service implements PreferencesChangeListener{
 		
 	};
 	
+	private BroadcastReceiver lowStorageReceiver = new BroadcastReceiver(){
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			lowStorage = true;
+			if (prefAdapter.noTrackingOnLowStorage()){
+				noTrackLowStoreMode = true;
+				btStats.out.println("Storage low! Turning off all tracking!");
+				for (int i = 0; i < NUM_LOGGERS; i++){
+					if (isLogging[i])
+						stopLoggingI(i);
+				}
+			}
+		}
+		
+	};
+	
+	private BroadcastReceiver storageOkReceiver = new BroadcastReceiver(){
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			lowStorage = false;
+			if (noTrackLowStoreMode){
+				btStats.out.println("Storage okay! Turning tracking back on!");
+				for (int i = 0; i < NUM_LOGGERS; i++)
+					if (isLogging[i])
+						startLoggingI(i);
+			}
+			noTrackLowStoreMode = false;
+		}
+		
+	};
+	
 	private BroadcastReceiver wifiReceiver = new BroadcastReceiver(){
 
 		public void onReceive(Context context, Intent intent) {
@@ -1131,7 +1168,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 		if (prefAdapter.noTrackingOnLowBat()){
 			if (lowBattery && !noTrackLowMode){
 				noTrackLowMode = true;
-				btStats.out.println("TRacking disabled on low battery! Turning off all tracking!");
+				btStats.out.println("Trarcking disabled on low battery! Turning off all tracking!");
 				for (int i = 0; i < NUM_LOGGERS; i++){
 					if (isLogging[i])
 						stopLoggingI(i);
@@ -1142,6 +1179,25 @@ public class BTService extends Service implements PreferencesChangeListener{
 			if (noTrackLowMode){
 				noTrackLowMode = false;
 				btStats.out.println("Tracking allowed on low battery! Turning on all tracking!");
+				for (int i = 0; i < NUM_LOGGERS; i++)
+					if (isLogging[i])
+						startLoggingI(i);
+			}
+		}
+		if (prefAdapter.noTrackingOnLowStorage()){
+			if (lowStorage && !noTrackLowStoreMode){
+				noTrackLowStoreMode = true;
+				btStats.out.println("Trarcking disabled on low storage! Turning off all tracking!");
+				for (int i = 0; i < NUM_LOGGERS; i++){
+					if (isLogging[i])
+						stopLoggingI(i);
+				}
+			}
+		}
+		else{
+			if (noTrackLowStoreMode){
+				noTrackLowStoreMode = false;
+				btStats.out.println("Tracking allowed on low storage! Turning on all tracking!");
 				for (int i = 0; i < NUM_LOGGERS; i++)
 					if (isLogging[i])
 						startLoggingI(i);

@@ -141,6 +141,10 @@ public class PreferencesAdapter implements PreferencesChangeListener {
 		return prefs.getBoolean("turnOffTrackingOnLowBat", false);
 	}
 	
+	public boolean noTrackingOnLowStorage(){
+		return prefs.getBoolean("turnOffTrackingOnLowStore", true);
+	}
+	
 	public boolean noUploadingOnLowBat(){
 		return prefs.getBoolean("turnOffUploadingOnLowBat", false);
 	}

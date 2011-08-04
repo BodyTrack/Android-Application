@@ -5,7 +5,7 @@
                 
                 <CheckBoxPreference android:key="networkEnabled" android:title="@string/title_network_toggle" android:summary="@string/sumary_network_toggle" android:defaultValue="true"></CheckBoxPreference>
                 <CheckBoxPreference android:title="@string/onlyUseWifi" android:defaultValue="false" android:key="onlyUseWifi" android:summary="@string/onlyUseWifiSumary"></CheckBoxPreference>
-                <EditTextPreference android:summary="@string/accSvcRunning" android:defaultValue="www.bodytrack.org" android:key="serverHost" android:title="@string/serverHost"></EditTextPreference>
+                <EditTextPreference android:defaultValue="www.bodytrack.org" android:key="serverHost" android:title="@string/serverHost" android:summary="@string/serverHostSummary"></EditTextPreference>
                 <EditTextPreference android:defaultValue="80" android:key="serverPort" android:summary="@string/serverPortSummary" android:title="@string/serverPort" android:numeric="integer"></EditTextPreference>
 	</PreferenceCategory>
 	<PreferenceCategory android:title="@string/powerPrefs">
@@ -19,6 +19,7 @@
 	</PreferenceCategory> -->
 	<PreferenceCategory android:title="@string/storagePrefs">
 		<CheckBoxPreference android:title="Store Sensor Data on External Storage" android:summary="saves sensor data to external storage device rather than internal memory." android:key="dbOnExternalStorage" android:defaultValue="true"></CheckBoxPreference>
+		<CheckBoxPreference android:key="turnOffTrackingOnLowStore" android:title="Turn Off Tracking On Low Storage" android:defaultValue="true" android:summary="disables tracking when the internal storage is low on storage. Recommended if you aren't using external storage."></CheckBoxPreference>
 	</PreferenceCategory>
 	
 </PreferenceScreen>
