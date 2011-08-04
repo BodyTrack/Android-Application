@@ -82,7 +82,7 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 	private Spinner sensorUpdateRatePicker;
 	private LinearLayout gpsSettingsPane;
 	
-	private LinearLayout accContainer, gyroContainer, orntContainer, lightContainer, tempContainer, pressContainer;
+	private View accContainer, gyroContainer, orntContainer, lightContainer, tempContainer, pressContainer;
 	
 	private TextView[] logRates = new TextView[BTService.NUM_LOGGERS];
 	private int[] loggerIds = new int[]{R.id.gpsSamples,R.id.accSamples,
@@ -139,12 +139,12 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		
 		takePic = (Button)findViewById(R.id.takePic);
 		
-		accContainer = (LinearLayout) findViewById(R.id.accContainer);
-		gyroContainer = (LinearLayout) findViewById(R.id.gyroContainer);
-		orntContainer = (LinearLayout) findViewById(R.id.orntContainer);
-		lightContainer = (LinearLayout) findViewById(R.id.lightContainer);
-		tempContainer = (LinearLayout) findViewById(R.id.tempContainer);
-		pressContainer = (LinearLayout) findViewById(R.id.pressContainer);
+		accContainer =  findViewById(R.id.accContainer);
+		gyroContainer =  findViewById(R.id.gyroContainer);
+		orntContainer =  findViewById(R.id.orntContainer);
+		lightContainer =  findViewById(R.id.lightContainer);
+		tempContainer =   findViewById(R.id.tempContainer);
+		pressContainer = findViewById(R.id.pressContainer);
 		
 		accContainer.setVisibility(View.GONE);
 		gyroContainer.setVisibility(View.GONE);
