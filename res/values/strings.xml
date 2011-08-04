@@ -74,24 +74,24 @@
   	<string name="title_photo_autoupload">Photo Autoupload</string>
   	<string name="sumary_photo_autoupload">Automatically upload photos after being taken.</string>
   	<string name="dump_gps">Dump Data to CSV</string>
-  	<string name="start_acc">Accelerometer Tracking</string>
+  	<string name="start_acc">Accelerometer</string>
   	<string name="stop_acc">Stop Accelerometer Tracking</string>
   	<string name="dump_acc">Dump data to CSV</string>
   	<string name="upload_photos_bg_title">Upload in Background</string>
   	<string name="sumary_upload_photos_bg">"Don't freeze up the UI while photos are being uploaded"</string>
   	<string name="title_device_nickname">Nickname</string>
   	<string name="sumary_device_nickname">Nickname that will be associated with data from this phone.</string>
-  	<string name="startGyro">Gyroscope Tracking</string><string name="stopGyro">Stop Gyroscope Tracking</string>
-  	<string name="startWifi">Wifi Tracking</string>
+  	<string name="startGyro">Gyroscope</string><string name="stopGyro">Stop Gyroscope Tracking</string>
+  	<string name="startWifi">Wifi</string>
   	<string name="stopWifi">Stop Wifi Tracking</string>
-  	<string name="startTemp">Temperature Tracking</string>
+  	<string name="startTemp">Temperature</string>
   	<string name="stopTemp">Stop Temperature Tracking</string>
-  	<string name="startLight">IlluminanceTracking</string>
+  	<string name="startLight">Illuminance</string>
   	<string name="stopLight">Stop IlluminanceTracking</string>
-  	<string name="startOrnt">Orientation Tracking</string>
-  	<string name="startPress">Barometric Pressure Tracking</string>
+  	<string name="startOrnt">Orientation</string>
+  	<string name="startPress">Barometric Pressure</string>
   	<string name="stopOrnt">Stop Orientation Tracking</string>
-  	<string name="startGPS">GPS Tracking</string>
+  	<string name="startGPS">GPS</string>
   	<string name="stopGPS">Stop GPS Tracking</string>
   	<string name="console">Console (last 10KB):</string>
   	<string name="Frequency">GPS Update Rate: </string>
@@ -126,5 +126,6 @@
   	<string name="serverPortSummary">Server Port</string>
   	<string name="splitAcc">Split Gravity From Linear Acceleration</string>
   	<string name="storagePrefs">Storage Preferences</string>
-  	<string name="sensorSetting">Sensor Delay: </string>
+  	<string name="sensorSetting">Motion Update Rate: </string>
+  	<string name="no_samples">0 samples/s</string>
 </resources>

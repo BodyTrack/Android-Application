@@ -65,7 +65,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 	
 	private boolean fixFound = false;
 	
-	private final static int[] sensorDelays = {SensorManager.SENSOR_DELAY_UI, SensorManager.SENSOR_DELAY_NORMAL, 
+	private final static int[] sensorDelays = {SensorManager.SENSOR_DELAY_UI, SensorManager.SENSOR_DELAY_NORMAL,  
 						SensorManager.SENSOR_DELAY_GAME, SensorManager.SENSOR_DELAY_FASTEST};
 	private final static String[] sensorDelayNames = {"Slow", "Normal", "Fast", "Fastest"};
 	
@@ -903,6 +903,8 @@ public class BTService extends Service implements PreferencesChangeListener{
 		
 	}
 	
+	private long[] lastUpdate = new long[NUM_LOGGERS+2];
+	
 	private class DbDataWriter extends AsyncTask<Void, Void, Void>{
 
 		@Override
@@ -914,6 +916,28 @@ public class BTService extends Service implements PreferencesChangeListener{
 					List<Object[]> currentList = dataLists.get(i);
 					dataLists.set(i, new LinkedList<Object[]>());
 					Object[][] data = currentList.toArray(new Object[][]{});
+					HomeTabbed instance = HomeTabbed.instance;
+					if (instance != null){
+						
+						double rate = 0;
+						long timeDiff = 5000;
+						if (lastUpdate[i] != 0){
+							timeDiff = System.currentTimeMillis() - lastUpdate[i];
+						}
+						rate = data.length * 1000.0 / timeDiff;
+						lastUpdate[i] = System.currentTimeMillis();
+						switch (i){
+							default:
+								instance.onSampleRateChanged(i,rate);
+								break;
+							case GRAVITY_ACC:
+							case LINEAR_ACC:
+								if (isSplittingAcc())
+									instance.onSampleRateChanged(ACC_LOGGING,rate);
+								break;
+						}
+						
+					}
 					//write data to database
 					switch (i){
 						case GPS_LOGGING:

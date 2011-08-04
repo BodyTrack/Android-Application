@@ -81,6 +81,12 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 	private Spinner gpsUpdateRatePicker;
 	private Spinner sensorUpdateRatePicker;
 	private LinearLayout gpsSettingsPane;
+	
+	private LinearLayout accContainer, gyroContainer, orntContainer, lightContainer, tempContainer, pressContainer;
+	
+	private TextView[] logRates = new TextView[BTService.NUM_LOGGERS];
+	private int[] loggerIds = new int[]{R.id.gpsSamples,R.id.accSamples,
+			R.id.gyroSamples,R.id.wifiSamples,R.id.tempSamples,R.id.orntSamples, R.id.lightSamples, R.id.pressSamples};
 
 	private IBTSvcRPC btBinder;
 
@@ -132,13 +138,21 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		logComment = (Button)findViewById(R.id.logComment);
 		
 		takePic = (Button)findViewById(R.id.takePic);
-		toggleAcc.setVisibility(View.GONE);
-		toggleGyro.setVisibility(View.GONE);
-		toggleLight.setVisibility(View.GONE);
-		toggleTemp.setVisibility(View.GONE);
-		toggleOrnt.setVisibility(View.GONE);
+		
+		accContainer = (LinearLayout) findViewById(R.id.accContainer);
+		gyroContainer = (LinearLayout) findViewById(R.id.gyroContainer);
+		orntContainer = (LinearLayout) findViewById(R.id.orntContainer);
+		lightContainer = (LinearLayout) findViewById(R.id.lightContainer);
+		tempContainer = (LinearLayout) findViewById(R.id.tempContainer);
+		pressContainer = (LinearLayout) findViewById(R.id.pressContainer);
+		
+		accContainer.setVisibility(View.GONE);
+		gyroContainer.setVisibility(View.GONE);
+		lightContainer.setVisibility(View.GONE);
+		tempContainer.setVisibility(View.GONE);
+		orntContainer.setVisibility(View.GONE);
 		splitAcc.setVisibility(View.GONE);
-		togglePress.setVisibility(View.GONE);
+		pressContainer.setVisibility(View.GONE);
 		
 		toggleWifi.setEnabled(false);
 		toggleGPS.setEnabled(false);
@@ -156,6 +170,10 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		logComment.setOnClickListener(this);
 		splitAcc.setOnClickListener(this);
 		togglePress.setOnClickListener(this);
+		
+		for (int i = 0; i < logRates.length; i++){
+			logRates[i] = (TextView) findViewById(loggerIds[i]);
+		}
 		
 		gpsUpdateRatePicker = (Spinner)findViewById(R.id.GPSRatePicker);
 		
@@ -175,6 +193,8 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		
 		gpsSettingsPane = (LinearLayout)findViewById(R.id.gpsSettingsPane);
 		gpsSettingsPane.setVisibility(View.GONE);
+		
+		
 		
 		Context ctx = getApplicationContext();
     	Intent intent = new Intent(ctx, BTService.class);
@@ -599,6 +619,30 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		// TODO Auto-generated method stub
 
 	}
+	
+	public void onSampleRateChanged(final int loggerId, final double rate){
+		runOnUiThread(new Runnable() {
+			public void run(){
+				double formattedRate = rate;
+				String unit = "samples/s";
+				if (formattedRate != 0){
+					if (formattedRate < 1){
+						formattedRate *= 60;
+						unit = "samples/min";
+						if (formattedRate < 1){
+							formattedRate *= 60;
+							unit = "samples/hr";
+							if (formattedRate < 1){
+								formattedRate *= 24;
+								unit = "samples/day";
+							}
+						}
+					}
+				}
+				logRates[loggerId].setText(new DecimalFormat("0.00").format(formattedRate) + " " + unit);
+			}
+		});
+	}
 
 	public void onLogRemainingChanged(final long millisLeft, final double rate) {
 		runOnUiThread(new Runnable() {
@@ -656,23 +700,23 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 					.isLogging(BTService.GPS_LOGGING) ? View.VISIBLE
 					: View.GONE);
 
-			toggleAcc
+			accContainer
 					.setVisibility(btBinder.canLog(BTService.ACC_LOGGING) ? View.VISIBLE
 							: View.GONE);
-			toggleGyro
+			gyroContainer
 					.setVisibility(btBinder.canLog(BTService.GYRO_LOGGING) ? View.VISIBLE
 							: View.GONE);
-			toggleLight
+			lightContainer
 					.setVisibility(btBinder.canLog(BTService.LIGHT_LOGGING) ? View.VISIBLE
 							: View.GONE);
-			toggleTemp
+			tempContainer
 					.setVisibility(btBinder.canLog(BTService.TEMP_LOGGING) ? View.VISIBLE
 							: View.GONE);
-			toggleOrnt
+			orntContainer
 					.setVisibility(btBinder.canLog(BTService.ORNT_LOGGING) ? View.VISIBLE
 							: View.GONE);
 			
-			togglePress.setVisibility(btBinder.canLog(BTService.PRESS_LOGGING) ? View.VISIBLE : View.GONE);
+			pressContainer.setVisibility(btBinder.canLog(BTService.PRESS_LOGGING) ? View.VISIBLE : View.GONE);
 			
 			splitAcc.setVisibility((btBinder.isLogging(BTService.ACC_LOGGING) && btBinder.canSplitAcc()) ? View.VISIBLE : View.GONE);
 

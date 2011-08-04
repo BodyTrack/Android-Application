@@ -9,22 +9,46 @@
 		<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 		    android:layout_width="fill_parent"
 		    android:layout_height="fill_parent" android:baselineAligned="true" android:orientation="vertical">
-		    <CheckBox android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/toggleGPS" android:text="@string/startGPS"></CheckBox>
+		    <LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/gpsContainer">
+		        <CheckBox android:layout_height="wrap_content" android:id="@+id/toggleGPS" android:text="@string/startGPS" android:layout_width="fill_parent" android:layout_weight="1"></CheckBox>
+		        <TextView android:layout_height="wrap_content" android:text="@string/no_samples" android:id="@+id/gpsSamples" android:layout_width="fill_parent" android:gravity="right" android:layout_weight="1"></TextView>
+		    </LinearLayout>
 		    <LinearLayout android:id="@+id/gpsSettingsPane" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_width="fill_parent">
 		        <TextView android:id="@+id/freqDisplay" android:text="@string/Frequency" android:layout_height="fill_parent" android:gravity="center_vertical|center_horizontal" android:layout_width="fill_parent" android:layout_weight="3"></TextView>
 		        <Spinner android:layout_weight="1" android:layout_width="fill_parent" android:layout_gravity="center" android:layout_height="wrap_content" android:id="@+id/GPSRatePicker"></Spinner>
 		    </LinearLayout>
-		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/toggleAcc" android:text="@string/start_acc"></CheckBox>
+		    <LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/accContainer">
+		        <CheckBox android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:id="@+id/toggleAcc" android:text="@string/start_acc"></CheckBox>
+		        <TextView android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/no_samples" android:gravity="right" android:layout_weight="1" android:id="@+id/accSamples"></TextView>
+		    </LinearLayout>
 		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/splitAcc" android:layout_marginLeft="25dip" android:id="@+id/splitAcc"></CheckBox>
-		    <CheckBox android:id="@+id/toggleGyro" android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startGyro"></CheckBox>
-		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startWifi" android:id="@+id/toggleWifi"></CheckBox>
-		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startLight" android:id="@+id/toggleLight"></CheckBox>
-		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startTemp" android:id="@+id/toggleTemp"></CheckBox>
-		    <CheckBox android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/startOrnt" android:id="@+id/toggleOrnt"></CheckBox>
-		    <CheckBox android:text="@string/startPress" android:id="@+id/togglePress" android:layout_width="fill_parent" android:layout_height="wrap_content"></CheckBox>
+		    <LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/gyroContainer">
+		        <CheckBox android:layout_height="wrap_content" android:id="@+id/toggleGyro" android:text="@string/startGyro" android:layout_width="fill_parent" android:layout_weight="1"></CheckBox>
+		        <TextView android:layout_height="wrap_content" android:layout_width="fill_parent" android:layout_weight="1" android:gravity="right" android:text="@string/no_samples" android:id="@+id/gyroSamples"></TextView>
+		    </LinearLayout>
+		    <LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/orntContainer">
+		        <CheckBox android:layout_height="wrap_content" android:id="@+id/toggleOrnt" android:text="@string/startOrnt" android:layout_width="fill_parent" android:layout_weight="1"></CheckBox>
+		        <TextView android:layout_height="wrap_content" android:id="@+id/orntSamples" android:text="@string/no_samples" android:layout_width="fill_parent" android:gravity="right" android:layout_weight="1"></TextView>
+		    </LinearLayout>
 		    <LinearLayout android:layout_width="fill_parent" android:id="@+id/linearLayout5" android:layout_height="wrap_content">
-		        <TextView android:id="@+id/textView1" android:layout_width="wrap_content" android:layout_height="fill_parent" android:gravity="center_vertical" android:text="@string/sensorSetting"></TextView>
-		        <Spinner android:layout_width="wrap_content" android:layout_weight="1" android:layout_height="wrap_content" android:id="@+id/sensorDelaySpinner"></Spinner>
+		        <TextView android:id="@+id/textView1" android:layout_height="fill_parent" android:text="@string/sensorSetting" android:gravity="center|center_vertical" android:layout_width="fill_parent" android:layout_weight="3"></TextView>
+		        <Spinner android:layout_height="wrap_content" android:id="@+id/sensorDelaySpinner" android:layout_width="fill_parent" android:layout_weight="1"></Spinner>
+		    </LinearLayout>
+		    <LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/lightContainer">
+		        <CheckBox android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:id="@+id/toggleLight" android:text="@string/startLight"></CheckBox>
+		        <TextView android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/no_samples" android:gravity="right" android:layout_weight="1" android:id="@+id/lightSamples"></TextView>
+		    </LinearLayout>
+		    <LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/wifiContainer">
+		        <CheckBox android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:id="@+id/toggleWifi" android:text="@string/startWifi"></CheckBox>
+		        <TextView android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/no_samples" android:gravity="right" android:layout_weight="1" android:id="@+id/wifiSamples"></TextView>
+		    </LinearLayout>
+		    <LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:weightSum="1" android:id="@+id/tempContainer">
+		        <CheckBox android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="0.50" android:id="@+id/toggleTemp" android:text="@string/startTemp"></CheckBox>
+		        <TextView android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/no_samples" android:gravity="right" android:layout_weight="0.50" android:id="@+id/tempSamples"></TextView>
+		    </LinearLayout>
+		    <LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/pressContainer">
+		        <CheckBox android:layout_height="wrap_content" android:id="@+id/togglePress" android:text="@string/startPress" android:layout_weight="1" android:layout_width="fill_parent"></CheckBox>
+		        <TextView android:layout_height="wrap_content" android:layout_width="fill_parent" android:layout_weight="1" android:gravity="right" android:id="@+id/pressSamples" android:text="@string/no_samples"></TextView>
 		    </LinearLayout>
 		</LinearLayout>
 	</ScrollView>
