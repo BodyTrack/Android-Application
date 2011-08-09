@@ -279,6 +279,18 @@ public class BTService extends Service implements PreferencesChangeListener{
 					default:
 						if (isLogging(i)){
 							stopLoggingI(i);
+						}
+						break;
+				}
+				
+			} //all sensors must be shut off before turned back on in order to slow update rate
+			for (int i = 0; i < NUM_LOGGERS; i++){
+				switch (i){
+					case GPS_LOGGING:
+					case WIFI_LOGGING:
+						break;
+					default:
+						if (isLogging(i)){
 							startLoggingI(i);
 						}
 						break;
