@@ -685,20 +685,23 @@ public class DbAdapter {
 		StringBuilder dataArray = new StringBuilder("[");
 		boolean first = true;
 		long time = 0;
-		for (Object[] curDat : data){
-			if (first)
-				first = false;
-			else
-				dataArray.append(",");
-			dataArray.append("[");
-			if (time == 0)
-				time = (Long) curDat[0];
-			dataArray.append(((Long) curDat[0]) / 1000.0);
-			for (int i = 0; i < 3; i++)
-				dataArray.append(",\"").append((String) curDat[1+i]).append("\"");
-			for (int i = 0; i < 2; i++)
-				dataArray.append(",").append((Integer) curDat[4+i]);
-			dataArray.append("]");
+		for (Object[] dat : data){
+			for (Object dat2 : dat){
+				Object[] curDat = (Object[]) dat2;
+				if (first)
+					first = false;
+				else
+					dataArray.append(",");
+				dataArray.append("[");
+				if (time == 0)
+					time = (Long) curDat[0];
+				dataArray.append(((Long) curDat[0]) / 1000.0);
+				for (int i = 0; i < 3; i++)
+					dataArray.append(",\"").append((String) curDat[1+i]).append("\"");
+				for (int i = 0; i < 2; i++)
+					dataArray.append(",").append((Integer) curDat[4+i]);
+				dataArray.append("]");
+			}
 		}
 		dataArray.append("]");
 		String jsonData = dataArray.toString();

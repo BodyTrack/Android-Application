@@ -603,14 +603,18 @@ public class BTService extends Service implements PreferencesChangeListener{
 		dataLists.get(GYRO_LOGGING).add(data);
 	}
 	
-	private void queueWifi(long timestamp, ScanResult result){
-		Object[] data = new Object[6];
-		data[0] = timestamp;
-		data[1] = result.SSID;
-		data[2] = result.BSSID;
-		data[3] = result.capabilities;
-		data[4] = result.frequency;
-		data[5] = result.level;
+	private void queueWifis(long timestamp, List<ScanResult> results){
+		Object[][] data = new Object[results.size()][6];
+		int i = 0;
+		for (ScanResult result : results){
+			data[i][0] = timestamp++;
+			data[i][1] = result.SSID;
+			data[i][2] = result.BSSID;
+			data[i][3] = result.capabilities;
+			data[i][4] = result.frequency;
+			data[i][5] = result.level;
+			i++;
+		}
 		dataLists.get(WIFI_LOGGING).add(data);
 	}
 	
@@ -852,13 +856,9 @@ public class BTService extends Service implements PreferencesChangeListener{
 		public void onReceive(Context context, Intent intent) {
 			if (isLogging[WIFI_LOGGING]){
 				List<ScanResult> results = wifiManager.getScanResults();
-				if (results != null){
+				if (results != null && results.size() != 0){
 					long resultTime = System.currentTimeMillis();
-					
-					for (ScanResult result : results){
-						queueWifi(resultTime, result);
-						resultTime++;
-					}
+					queueWifis(resultTime, results);
 				}
 				else{
 					results = new LinkedList<ScanResult>();
@@ -939,37 +939,39 @@ public class BTService extends Service implements PreferencesChangeListener{
 						
 					}
 					//write data to database
-					switch (i){
-						case GPS_LOGGING:
-							dbAdapter.writeLocations(data);
-							break;
-						case ACC_LOGGING:
-							dbAdapter.writeAccelerations(data);
-							break;
-						case GYRO_LOGGING:
-							dbAdapter.writeGyros(data);
-							break;
-						case WIFI_LOGGING:
-							dbAdapter.writeWifis(data);
-							break;
-						case ORNT_LOGGING:
-							dbAdapter.writeOrientations(data);
-							break;
-						case LIGHT_LOGGING:
-							dbAdapter.writeLights(data);
-							break;
-						case TEMP_LOGGING:
-							dbAdapter.writeTemps(data);
-							break;
-						case GRAVITY_ACC:
-							dbAdapter.writeGravityAccelerations(data);
-							break;
-						case LINEAR_ACC:
-							dbAdapter.writeLinearAccelerations(data);
-							break;
-						case PRESS_LOGGING:
-							dbAdapter.writePressures(data);
-							break;
+					if (data.length != 0){
+						switch (i){
+							case GPS_LOGGING:
+								dbAdapter.writeLocations(data);
+								break;
+							case ACC_LOGGING:
+								dbAdapter.writeAccelerations(data);
+								break;
+							case GYRO_LOGGING:
+								dbAdapter.writeGyros(data);
+								break;
+							case WIFI_LOGGING:
+								dbAdapter.writeWifis(data);
+								break;
+							case ORNT_LOGGING:
+								dbAdapter.writeOrientations(data);
+								break;
+							case LIGHT_LOGGING:
+								dbAdapter.writeLights(data);
+								break;
+							case TEMP_LOGGING:
+								dbAdapter.writeTemps(data);
+								break;
+							case GRAVITY_ACC:
+								dbAdapter.writeGravityAccelerations(data);
+								break;
+							case LINEAR_ACC:
+								dbAdapter.writeLinearAccelerations(data);
+								break;
+							case PRESS_LOGGING:
+								dbAdapter.writePressures(data);
+								break;
+						}
 					}
 				}				
 				try {
