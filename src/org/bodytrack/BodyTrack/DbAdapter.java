@@ -266,18 +266,19 @@ public class DbAdapter {
 	}
 	
 	public DbAdapter open() throws SQLException{
+		boolean external = prefAdapter.dbStoredExternally();
 		while (true){
 			try{
-				mDbHelper = new DatabaseHelper(mCtx,prefAdapter.dbStoredExternally());
+				mDbHelper = new DatabaseHelper(mCtx,external);
 				mDb = mDbHelper.getWritableDatabase();
 				mDb.setLockingEnabled(true);
 				break;
 			} catch (RuntimeException e){
 				mDbHelper.close();
-				if (!prefAdapter.dbStoredExternally())
+				if (!external)
 					throw e;
-				prefAdapter.setDbStoredExternally(false);
-				btStats.out.println("failed to open external db. disabling external storage!");
+				external = false;
+				btStats.out.println("failed to open external db. opening db on internal memory!");
 			}
 		}
 		return this;
@@ -294,7 +295,7 @@ public class DbAdapter {
 			SQLiteDatabase oldDatabase = mDb;
 			DatabaseHelper oldHelper = mDbHelper;
 			open();
-			if (prefAdapter.dbStoredExternally() != isExternal){
+			if (mDbHelper.isExternal() != isExternal){
 				new MoveDatabaseTask().execute(ctxForProgress,oldDatabase,oldHelper);
 			}
 			else{
@@ -1227,7 +1228,7 @@ public class DbAdapter {
 	}
 	
 	private void uploadLogData(String macAdd, String uploadAdd, String devNickName, String channels, String channelSpecs, String dbName){
-		StringBuffer dataToUpload = new StringBuffer();
+		StringBuilder dataToUpload = new StringBuilder();
 		boolean first = true;
 		
 		long lastId = 0;
@@ -1243,7 +1244,7 @@ public class DbAdapter {
 			dataCursor.close();
 			return;
 		}
-		while (!dataCursor.isAfterLast()){
+		while (!dataCursor.isAfterLast() && dataToUpload.length() < 500 * 1024){
 			String curData = dataCursor.getString(dataCursor.getColumnIndex(KEY_DATA));
 			lastId = dataCursor.getLong(dataCursor.getColumnIndex(KEY_TIME));
 			if (first){
@@ -1253,19 +1254,18 @@ public class DbAdapter {
 			else{
 				dataToUpload.deleteCharAt(dataToUpload.length() - 1);
 				dataToUpload.append(",");
-				dataToUpload.append(curData.substring(1));
+				dataToUpload.append(curData,1,curData.length());
 			}
 			dataCursor.moveToNext();
 		}
 		dataCursor.close();
 		String dataString = dataToUpload.toString();
 		btStats.addTimeSpentGatheringAndJoining(System.currentTimeMillis() - start);
-		if (lastId >= 0){
+		if (lastId >= 0 && uploadData(uploadAdd, macAdd, devNickName, channels, channelSpecs, dataString)){
 			start = System.currentTimeMillis();
 			mDb.delete(dbName, KEY_TIME + "<=" + lastId, null);
 			btStats.addTimeSpentDeletingData(System.currentTimeMillis() - start);
 		}
-		uploadData(uploadAdd, macAdd, devNickName, channels, channelSpecs, dataString);
 		return;
 	}
 	

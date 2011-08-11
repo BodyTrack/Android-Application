@@ -188,7 +188,6 @@ public class BTService extends Service implements PreferencesChangeListener{
 	    registerReceiver(lowStorageReceiver, new IntentFilter(Intent.ACTION_DEVICE_STORAGE_LOW));
 	    registerReceiver(storageOkReceiver, new IntentFilter(Intent.ACTION_DEVICE_STORAGE_OK));
 	    registerReceiver(externalPowerReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
-	    
 	    new UploaderTask().execute();
 	}
 	

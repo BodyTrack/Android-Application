@@ -210,6 +210,8 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 	public void onResume(){
 		super.onResume();
 		updateButtons();
+		btStats.out.println("Verifying db storage location");
+		dbAdapter.verifyDBLocation(this);
 	}
 
 	@Override
@@ -302,29 +304,10 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 										dialog.dismiss();
 									}
 								}).create();
-				d.setOnDismissListener(new OnDismissListener(){
-
-					@Override
-					public void onDismiss(DialogInterface dialog) {
-						dbAdapter.verifyDBLocation(HomeTabbed.this);
-					}
-					
-				});
 				d.show();
 			} else if (!prefAdapter.prefsAreGood()) {
 				prefConfigDialog.setMessage(getString(R.string.pref_invalid));
 				prefConfigDialog.show();
-				prefConfigDialog.setOnDismissListener(new OnDismissListener(){
-
-					@Override
-					public void onDismiss(DialogInterface arg0) {
-						dbAdapter.verifyDBLocation(HomeTabbed.this);
-					}
-					
-				});
-			}
-			else{
-				dbAdapter.verifyDBLocation(this);
 			}
 		} catch (Exception e) {
 			Toast.makeText(this,
