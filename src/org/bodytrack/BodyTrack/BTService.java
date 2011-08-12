@@ -179,6 +179,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 	    
 	    gpsDelay = prefAdapter.getGPSDelay();
 	    sensorDelay = prefAdapter.getSensorDelay();
+	    loadSensorSettings();
 	    
 	    dbUpdaterTask = new DbDataWriter();
 	    dbUpdaterTask.execute();
@@ -189,6 +190,23 @@ public class BTService extends Service implements PreferencesChangeListener{
 	    registerReceiver(storageOkReceiver, new IntentFilter(Intent.ACTION_DEVICE_STORAGE_OK));
 	    registerReceiver(externalPowerReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
 	    new UploaderTask().execute();
+	}
+	
+	private void loadSensorSettings(){
+		int value = prefAdapter.getSensorSettings();
+		for (int i = 0; i < NUM_LOGGERS; i++){
+			if ((value & (2 << i)) != 0)
+				startLogging(i);
+		}
+	}
+	
+	private void saveSensorSettings(){
+		int value = 0;
+		for (int i = 0; i < NUM_LOGGERS; i++){
+			if (isLogging(i))
+				value |= 2 << i;
+		}
+		prefAdapter.setSensorSettings(value);
 	}
 	
 	public static String[] getAllGpsDelayNames(){
@@ -417,7 +435,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 		if (!foregroundEnabled && anyLogging()){
 			bringToForeground();
 		}
-		
+		saveSensorSettings();
 	}
 	
 	private void stopLoggingI(int id){
@@ -472,6 +490,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 		if (foregroundEnabled && !anyLogging()){
 			stopForegroundCompat(NOTIFICATION);
 		}
+		saveSensorSettings();
 	}
 	
 	private boolean canLog(int id){

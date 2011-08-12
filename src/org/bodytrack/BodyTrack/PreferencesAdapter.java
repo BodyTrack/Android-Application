@@ -170,6 +170,14 @@ public class PreferencesAdapter implements PreferencesChangeListener {
 		return true;
 	}
 	
+	public int getSensorSettings(){
+		return prefs.getInt("sensorsOn",0);
+	}
+	
+	public void setSensorSettings(int value){
+		prefs.edit().putInt("sensorsOn", value).commit();
+	}
+	
 	private void fixUpNickName(){
 		String nickname = getNickName();
 		StringBuffer processedNickName = new StringBuffer();
