@@ -231,7 +231,8 @@ public class PreferencesAdapter implements PreferencesChangeListener {
 			int uid = INVALID_USER_ID;
 			String oldUserName = prefs.getString("oldUserName", INVALID_USER_NAME);
 			String oldPassword = prefs.getString("oldPassword", INVALID_PASSWORD);
-			if (oldUserName.equals(getUserName()) && oldPassword.equals(getPassword()))
+			String oldHost = prefs.getString("oldHost", "");
+			if (oldUserName.equals(getUserName()) && oldPassword.equals(getPassword()) && oldHost.equals(getHost()))
 				return null;
 			if (isNetworkEnabled()){
 				if (hasWebAccess()){
@@ -289,10 +290,12 @@ public class PreferencesAdapter implements PreferencesChangeListener {
 			if (uid == INVALID_USER_ID){
 				prefs.edit().putString("oldUserName", INVALID_USER_NAME).commit();
 				prefs.edit().putString("oldPassword", INVALID_PASSWORD).commit();
+				prefs.edit().putString("oldHost","").commit();
 			}
 			else{
 				prefs.edit().putString("oldUserName", getUserName()).commit();
 				prefs.edit().putString("oldPassword", getPassword()).commit();
+				prefs.edit().putString("oldHost", getHost()).commit();
 			}
 			return null;
 		}
