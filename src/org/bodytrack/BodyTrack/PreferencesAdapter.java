@@ -158,7 +158,8 @@ public class PreferencesAdapter implements PreferencesChangeListener {
 	}
 	
 	public boolean dbStoredExternally(){
-		return prefs.getBoolean("dbOnExternalStorage", false);
+		//return prefs.getBoolean("dbOnExternalStorage", false);
+		return false; //external storage seems to be too slow no matter what and causes problems
 	}
 	
 	public void setDbStoredExternally(boolean external){
