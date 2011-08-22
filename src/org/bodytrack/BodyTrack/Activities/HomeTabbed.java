@@ -468,28 +468,30 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 			  final String comment = input.getText().toString();
 			  final EditText newInput = new EditText(HomeTabbed.this);
 			  dbAdapter.writeComment(comment);
-			  new AlertDialog.Builder(HomeTabbed.this)
-			  			.setTitle("Save as quick comment?")
-			  			.setView(newInput)
-			  			.setMessage("Quick comment name:")
-			  			.setPositiveButton("Save", new DialogInterface.OnClickListener() {
-							
-							@Override
-							public void onClick(DialogInterface dialog, int which) {
-								String name = newInput.getText().toString();
-								if (!name.equals(""))
-									dbAdapter.writeQuickComment(name, comment);
-							}
-						})
-						.setNegativeButton("No", new DialogInterface.OnClickListener() {
-							
-							@Override
-							public void onClick(DialogInterface dialog, int which) {
-								btStats.out.println("Quick Comment not saved!");
-							}
-						}).show();
+
+			  // Diable quick comments for now
+//			  new AlertDialog.Builder(HomeTabbed.this)
+//			  			.setTitle("Save as quick comment?")
+//			  			.setView(newInput)
+//			  			.setMessage("Quick comment name:")
+//			  			.setPositiveButton("Save", new DialogInterface.OnClickListener() {
+//							
+//							@Override
+//							public void onClick(DialogInterface dialog, int which) {
+//								String name = newInput.getText().toString();
+//								if (!name.equals(""))
+//									dbAdapter.writeQuickComment(name, comment);
+//							}
+//						})
+//						.setNegativeButton("No", new DialogInterface.OnClickListener() {
+//							
+//							@Override
+//							public void onClick(DialogInterface dialog, int which) {
+//								btStats.out.println("Quick Comment not saved!");
+//							}
+//						}).show();
 			  			
-			  }
+			}
 			});
 
 			alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
@@ -500,11 +502,12 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 			
 			boolean allowQuickComment = false;
 			
-			Cursor c = dbAdapter.fetchQuickComments();
-			if (c != null){
-				allowQuickComment = c.moveToFirst();
-				c.close();
-			}
+			// Diable quick comments for now
+//			Cursor c = dbAdapter.fetchQuickComments();
+//			if (c != null){
+//				allowQuickComment = c.moveToFirst();
+//				c.close();
+//			}
 			
 			if (allowQuickComment){			
 				new AlertDialog.Builder(this)
