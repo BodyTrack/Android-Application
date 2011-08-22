@@ -235,7 +235,7 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 			return true;
 		}
 		case R.id.website: {
-			Intent intent = new Intent(Intent.ACTION_VIEW,Uri.parse("http://www.bodytrack.org/"));
+			Intent intent = new Intent(Intent.ACTION_VIEW,Uri.parse("http://" + prefAdapter.getHost()));
 			startActivity(intent);
 			return true;
 		}
