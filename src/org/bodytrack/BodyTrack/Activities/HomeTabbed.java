@@ -629,12 +629,7 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 			}
 		});
 	}
-/*
- * 				double roundTwoDecimals(double d) {
-		        	DecimalFormat twoDForm = new DecimalFormat("#.##");
-				return Double.valueOf(twoDForm.format(d));
-		}
- */
+
 	public void onLogRemainingChanged(final float storageBytesPerMilli, final long totalStorageBytes, final float uploadBytesPerMilli, final long totalUploadBytes) {
 		runOnUiThread(new Runnable() {
 			public void run() {
