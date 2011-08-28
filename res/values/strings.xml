@@ -103,8 +103,6 @@
   	<string name="stats">Stats</string>
   	<string name="enableAll">Enable All</string>
   	<string name="disableAll">Disable All</string>
-  	<string name="genericTimeRemaining">0 s of backlog</string>
-  	<string name="rateNoChange">remaining constant</string>
   	<string name="onlyUseWifi">Use WiFi Only</string>
   	<string name="onlyUseWifiSumary">Only upload data when connected to a wifi network.</string>
   	<string name="powerPrefs">Power Options</string>

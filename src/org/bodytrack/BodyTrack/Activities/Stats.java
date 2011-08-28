@@ -100,7 +100,7 @@ public class Stats extends Activity implements OnClickListener{
 		dbSize.setText("DB Size: " + size + " " + sizeUnits);
 		dbWrites.setText("DB Writes: " + btStats.getDbWrites());
 		
-		size = btStats.getTotalDataBytes();
+		size = btStats.getTotalDataUploadBytes();
 		if (size >= 1073741824){
 			size /= 1073741824;
 			sizeUnits = "GB";

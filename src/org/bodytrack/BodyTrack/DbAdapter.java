@@ -440,7 +440,7 @@ public class DbAdapter {
 		long start = System.currentTimeMillis();
 		long retVal = mDb.insert(LOG_COMMENT_TABLE, null, commentToPut);
 		btStats.addTimeSpentPushingIntoDB(System.currentTimeMillis() - start);
-		btStats.addDbWrite();
+		btStats.addDbWrite(comment.length());
 		if (retVal >= 0)
 			btStats.out.println("Comment " + id + " was written to database!");
 		else
@@ -493,7 +493,7 @@ public class DbAdapter {
 		long start = System.currentTimeMillis();
 		long retVal = mDb.insert(QUICK_COMMENT_TABLE, null, commentToPut);
 		btStats.addTimeSpentPushingIntoDB(System.currentTimeMillis() - start);
-		btStats.addDbWrite();
+		btStats.addDbWrite(comment.length());
 		if (retVal >= 0)
 			btStats.out.println("Quick Comment ("+name+","+comment+") was written to the database!");
 		else
@@ -570,7 +570,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_LOC_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
-		btStats.addDbWrite();
+		btStats.addDbWrite(jsonData.length());
 		return retVal;
 	}
 	
@@ -605,7 +605,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_ACC_TABLE, null, accToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
-		btStats.addDbWrite();
+		btStats.addDbWrite(jsonData.length());
 		return retVal;
 	}
 	
@@ -640,7 +640,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(GRAV_ACC_TABLE, null, accToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
-		btStats.addDbWrite();
+		btStats.addDbWrite(jsonData.length());
 		return retVal;
 	}
 	
@@ -675,7 +675,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(LINE_ACC_TABLE, null, accToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
-		btStats.addDbWrite();
+		btStats.addDbWrite(jsonData.length());
 		return retVal;
 	}
 	
@@ -715,7 +715,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_WIFI_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
-		btStats.addDbWrite();
+		btStats.addDbWrite(jsonData.length());
 		return retVal;
 	}
 	
@@ -750,7 +750,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_GYRO_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
-		btStats.addDbWrite();
+		btStats.addDbWrite(jsonData.length());
 		return retVal;
 	}
 	
@@ -785,7 +785,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_ORNT_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
-		btStats.addDbWrite();
+		btStats.addDbWrite(jsonData.length());
 		return retVal;
 	}
 	
@@ -819,7 +819,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(PRESS_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
-		btStats.addDbWrite();
+		btStats.addDbWrite(jsonData.length());
 		return retVal;
 	}
 	
@@ -853,7 +853,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_LIGHT_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
-		btStats.addDbWrite();
+		btStats.addDbWrite(jsonData.length());
 		return retVal;
 	}
 	
@@ -887,7 +887,7 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_TEMP_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
-		btStats.addDbWrite();
+		btStats.addDbWrite(jsonData.length());
 		return retVal;
 	}
     
@@ -1010,7 +1010,8 @@ public class DbAdapter {
 		long retVal = mDb.insert(NEW_BC_TABLE, null, locToPut);
 		finish = System.currentTimeMillis();
 		btStats.addTimeSpentPushingIntoDB(finish - start);
-		btStats.addDbWrite();		return retVal;
+		btStats.addDbWrite(jsonData.length());
+		return retVal;
 	}
 	
 	public long getSize(){
@@ -1046,14 +1047,15 @@ public class DbAdapter {
 		ContentValues picToPut = new ContentValues();
 		long currentTime = System.currentTimeMillis();
 		String picFileName = Environment.getExternalStorageDirectory().getAbsolutePath() + "/pic_" + currentTime + ".jpg";
-		picture.renameTo(new File(picFileName));
+		File picFile = new File(picFileName);
+		picture.renameTo(picFile);
 		
 		picToPut.put(PIX_KEY_PIC, picFileName);
 		picToPut.put(PIX_KEY_TIME, System.currentTimeMillis());
 		picToPut.put(PIX_KEY_COMMENT, comment);
 		picToPut.put(PIX_KEY_UPLOAD_STATE, PIC_PENDING_UPLOAD);
 		long result = mDb.insert(PIX_TABLE, null, picToPut);
-		btStats.addDbWrite();
+		btStats.addDbWrite(picFile.length());
 		if (result == 0){
 			picture.delete();
 		}

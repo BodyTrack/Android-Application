@@ -30,10 +30,17 @@ public class BTStatisticTracker {
 	private long timeSpentGatheringAndJoining = 0;
 	private long timeSpentUploadingData = 0;
 	private long timeSpentDeletingDBData = 0;
-	private long totalDataBytes = 0;
+	private long totalDataStorageBytes = 0;
+	private long totalDataUploadBytes = 0;
 	private long totalOverheadBytes = 0;
 	private long dbWrites = 0;
 	private long start = 0;
+	
+	private long uploadRateTime = 0;
+	private long uploadRateBytes = 0;
+	private long storeRateTime = 0;
+	private long storeRateBytes = 0;
+	
 	private StringBuffer consoleText = new StringBuffer();
 	
 	private PrintStream fOut = new LogPrintStream();
@@ -110,12 +117,12 @@ public class BTStatisticTracker {
 		totalOverheadBytes += bytes;
 	}
 	
-	public void addDataBytes(long bytes){
-		totalDataBytes += bytes;
+	public void addDataUploadBytes(long bytes){
+		totalDataUploadBytes += bytes;
 	}
 	
 	public void logBytesUploaded(long data, long overhead, int statusCode){
-		addDataBytes(data);
+		addDataUploadBytes(data);
 		addOverheadBytes(overhead);
 		/*long bytes = data + overhead;
 		String prefix = "";
@@ -132,7 +139,16 @@ public class BTStatisticTracker {
 		out.println("Uploaded " + bytes + " " + prefix + "B with response: " + statusCode);*/
 	}
 	
-	public void addDbWrite(){
+	public void addDataStorageBytes(long bytes){
+		totalDataStorageBytes += bytes;
+	}
+
+	public void logBytesStored(long data) {
+		addDataStorageBytes(data);
+	}
+
+	public void addDbWrite(long data){
+		addDataStorageBytes(data);
 		dbWrites++;
 	}
 	
@@ -160,8 +176,12 @@ public class BTStatisticTracker {
 		return System.currentTimeMillis() - start;
 	}
 	
-	public long getTotalDataBytes(){
-		return totalDataBytes;
+	public long getTotalDataStorageBytes(){
+		return totalDataStorageBytes;
+	}
+	
+	public long getTotalDataUploadBytes(){
+		return totalDataUploadBytes;
 	}
 	
 	public long getTotalOverheadBytes(){
@@ -174,6 +194,26 @@ public class BTStatisticTracker {
 	
 	public String getConsoleText(){
 		return consoleText.toString();
+	}
+	
+	public float getUploadRate() {
+		long curTime = System.currentTimeMillis();
+		float rate = (totalDataUploadBytes - uploadRateBytes) / (float)(curTime - uploadRateTime);
+
+		uploadRateBytes = totalDataUploadBytes;
+		uploadRateTime = curTime;
+		
+		return rate;	// bytes per millisecond
+	}
+	
+	public float getStoreRate() {
+		long curTime = System.currentTimeMillis();
+		float rate = (totalDataStorageBytes - storeRateBytes) / (float)(curTime - storeRateTime);
+		
+		storeRateBytes = totalDataStorageBytes;
+		storeRateTime = curTime;
+
+		return rate;	// bytes per millisecond
 	}
 	
 	private class LogPrintStream extends PrintStream{

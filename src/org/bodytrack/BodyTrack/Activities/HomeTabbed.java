@@ -75,8 +75,8 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 	private CheckBox toggleGPS;
 	private CheckBox togglePress;
 	private CheckBox splitAcc;
-	private TextView backLogLeft;
-	private TextView backLogRate;
+	private TextView recordInfo;
+	private TextView uploadInfo;
 	private Button takePic, enableAll, disableAll, logComment;
 	private Spinner gpsUpdateRatePicker;
 	private Spinner sensorUpdateRatePicker;
@@ -119,8 +119,8 @@ public class HomeTabbed extends Activity /* TabActivity */implements
         	prefConfigDialog.show();
         }
         
-        backLogLeft = (TextView)findViewById(R.id.backLogRemaining);
-        backLogRate = (TextView)findViewById(R.id.backLogRate);
+        recordInfo = (TextView)findViewById(R.id.recordInfo);
+        uploadInfo = (TextView)findViewById(R.id.uploadInfo);
         
         toggleAcc = (CheckBox)findViewById(R.id.toggleAcc);
 		toggleGyro = (CheckBox)findViewById(R.id.toggleGyro);
@@ -629,42 +629,25 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 			}
 		});
 	}
-
-	public void onLogRemainingChanged(final long millisLeft, final double rate) {
+/*
+ * 				double roundTwoDecimals(double d) {
+		        	DecimalFormat twoDForm = new DecimalFormat("#.##");
+				return Double.valueOf(twoDForm.format(d));
+		}
+ */
+	public void onLogRemainingChanged(final float storageBytesPerMilli, final long totalStorageBytes, final float uploadBytesPerMilli, final long totalUploadBytes) {
 		runOnUiThread(new Runnable() {
 			public void run() {
-				long time = millisLeft / 1000;
-				String unit = "s";
-				if (time > 3600 * 24 * 7){
-					time /= 3600 * 24 * 7;
-					unit = "weeks";
+				// bytes/ms = kb/sec
+				DecimalFormat df = new DecimalFormat("#.##");
+				
+				recordInfo.setText("Recording: " + df.format(storageBytesPerMilli) + " KB/s");	// recording
+				
+				if (!prefAdapter.isNetworkEnabled()) {
+					uploadInfo.setText("Upload paused until network is enabled");
 				}
-				else if (time > 3600 * 24){
-					time /= 3600 * 24;
-					unit = "days";
-				}
-				else if (time > 3600){
-					time /= 3600;
-					unit = "hr";
-				}
-				else if (time > 60){
-					time /= 60;
-					unit = "min";
-				}
-				backLogLeft.setText(time + " " + unit + " of backlog");
-				if (!prefAdapter.isNetworkEnabled()){
-					backLogRate.setText("Network is disabled!");
-				}
-				else{
-					if (rate > 0){
-						backLogRate.setText("growing at " + new DecimalFormat("0.00").format(rate) + " s of log/s");
-					}
-					else if (rate == 0){
-						backLogRate.setText(R.string.rateNoChange);
-					}
-					else{
-						backLogRate.setText("draining at " + new DecimalFormat("0.00").format(rate * -1) + " s of log/s");
-					}
+				else {
+					uploadInfo.setText("Uploading: " + df.format(uploadBytesPerMilli) + " KB/s [" + Long.toString((totalStorageBytes - totalUploadBytes)/1024) + " KB remaining]");	// upload
 				}
 			}
 		});

@@ -1177,19 +1177,9 @@ public class BTService extends Service implements PreferencesChangeListener{
 						
 					}
 				}
-				long curTime = System.currentTimeMillis();
-				long timeOff = curTime - dbAdapter.getOldestTime();
 				HomeTabbed instance = HomeTabbed.instance;
 				if (instance != null){
-					double rate = 0;
-					if (prevTime != 0){
-						long timeDiff = curTime - prevTime;
-						long drain = timeOff - prevTimeOff;
-						rate = drain / (double) timeDiff;
-					}
-					instance.onLogRemainingChanged(timeOff, rate);
-					prevTimeOff = timeOff;
-					prevTime = curTime;
+					instance.onLogRemainingChanged(btStats.getStoreRate(), btStats.getTotalDataStorageBytes(), btStats.getUploadRate(), btStats.getTotalDataUploadBytes());
 				}
 			}
 	     }

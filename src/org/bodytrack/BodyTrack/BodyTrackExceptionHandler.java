@@ -35,7 +35,7 @@ public class BodyTrackExceptionHandler implements UncaughtExceptionHandler {
 			out.println("Time spent deleting data: " + (btStats.getTimeSpentDeletingData() / 1000.0));
 			out.println("Total uptime: " + (btStats.getTotalUptime() / 1000.0));
 			out.println("Database Writes: " + btStats.getDbWrites());
-			out.println("Data uploaded: " + btStats.getTotalDataBytes());
+			out.println("Data uploaded: " + btStats.getTotalDataUploadBytes());
 			out.println("Overhead uploaded: " + btStats.getTotalOverheadBytes());
 			out.println("Recent Console Output:");
 			out.println(btStats.getConsoleText());
