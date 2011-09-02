@@ -1164,15 +1164,15 @@ public class BTService extends Service implements PreferencesChangeListener{
 							dbAdapter.uploadComment(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName(), id);
 						}
 					}
-					//sleep a bit in case thread is eating too much cpu
+					// attempt upload once a minute
 					try {
-						Thread.sleep(1000);
+						Thread.sleep(60000);
 					} catch (InterruptedException e) {
 					}
 				}
-				else{ //sleep 5 seconds if no network is present
+				else{ //attempt upload once a minute
 					try{
-						Thread.sleep(5000);
+						Thread.sleep(60000);
 					} catch (InterruptedException e){
 						
 					}
