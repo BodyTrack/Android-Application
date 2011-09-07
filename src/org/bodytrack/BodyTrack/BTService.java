@@ -1091,21 +1091,17 @@ public class BTService extends Service implements PreferencesChangeListener{
 	private class UploaderTask extends AsyncTask<Void, Void, Void> {
 		//TODO: clean this up!
 	     protected Void doInBackground(Void... params) {	
-	    	//upload gps data
-	    	 
-	    	
-	    	WifiInfo address = wifiManager.getConnectionInfo();
+
+	    	 WifiInfo address = wifiManager.getConnectionInfo();
 			
-			while (true){
-				
+			while (true) {
 				NetworkInfo curNetwork = conMan.getActiveNetworkInfo();
 				
 				if (curNetwork != null && curNetwork.isConnected() && (!curNetwork.isRoaming() || prefAdapter.canUse3G()) && allowedToUpload()){
 				
 					//upload gps data
 					dbAdapter.uploadLocations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
-		    	 
-		 			
+		    	 		 			
 		 			//upload accelerometer data
 					if (allowedToUpload())
 						dbAdapter.uploadAccelerations(address.getMacAddress(), prefAdapter.getUploadAddress(), prefAdapter.getNickName());
@@ -1170,15 +1166,15 @@ public class BTService extends Service implements PreferencesChangeListener{
 					} catch (InterruptedException e) {
 					}
 				}
-				else{ //attempt upload once a minute
+				else{ // sleep for one minute and try again
 					try{
 						Thread.sleep(60000);
-					} catch (InterruptedException e){
+					} catch (InterruptedException e) {
 						
 					}
 				}
 				HomeTabbed instance = HomeTabbed.instance;
-				if (instance != null){
+				if (instance != null) {
 					instance.onLogRemainingChanged(btStats.getStoreRate(), btStats.getTotalDataStorageBytes(), btStats.getUploadRate(), btStats.getTotalDataUploadBytes());
 				}
 			}

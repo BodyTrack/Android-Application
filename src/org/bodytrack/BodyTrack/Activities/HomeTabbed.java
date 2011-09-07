@@ -97,7 +97,6 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		
 		btStats = BTStatisticTracker.getInstance();
 		
-	    
 	    setContentView(R.layout.sensors);
 	    dbAdapter = DbAdapter.getDbAdapter(getApplicationContext());
 	    prefAdapter = PreferencesAdapter.getInstance(getApplicationContext());
@@ -193,8 +192,6 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		
 		gpsSettingsPane = (LinearLayout)findViewById(R.id.gpsSettingsPane);
 		gpsSettingsPane.setVisibility(View.GONE);
-		
-		
 		
 		Context ctx = getApplicationContext();
     	Intent intent = new Intent(ctx, BTService.class);
@@ -603,7 +600,6 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 	@Override
 	public void onNothingSelected(AdapterView<?> arg0) {
 		// TODO Auto-generated method stub
-
 	}
 	
 	public void onSampleRateChanged(final int loggerId, final double rate){

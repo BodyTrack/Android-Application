@@ -1,6 +1,6 @@
 package org.bodytrack.BodyTrack;
 
-/*This AIDL file defines the RPc interface for the GPS service.
+/*This AIDL file defines the RPC interface for the GPS service.
 */
 
 interface IBTSvcRPC {
