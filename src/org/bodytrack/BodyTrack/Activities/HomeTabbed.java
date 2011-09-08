@@ -2,6 +2,8 @@ package org.bodytrack.BodyTrack.Activities;
 
 import java.io.File;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.bodytrack.BodyTrack.BTService;
 import org.bodytrack.BodyTrack.BTStatisticTracker;
@@ -23,12 +25,14 @@ import android.content.ServiceConnection;
 import android.database.Cursor;
 import android.hardware.SensorManager;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.provider.MediaStore;
 import android.text.Editable;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -81,7 +85,7 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 	private Spinner gpsUpdateRatePicker;
 	private Spinner sensorUpdateRatePicker;
 	private LinearLayout gpsSettingsPane;
-	
+		
 	private View accContainer, gyroContainer, orntContainer, lightContainer, tempContainer, pressContainer;
 	
 	private TextView[] logRates = new TextView[BTService.NUM_LOGGERS];
@@ -89,7 +93,9 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 			R.id.gyroSamples,R.id.wifiSamples,R.id.tempSamples,R.id.orntSamples, R.id.lightSamples, R.id.pressSamples};
 
 	private IBTSvcRPC btBinder;
-
+	
+	private UploadStatusTask uploadStatusTask;
+	
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		instance = this;
@@ -204,11 +210,20 @@ public class HomeTabbed extends Activity /* TabActivity */implements
     	//Debug.startMethodTracing("profile");
 	}
 	
+	public void onPause() {
+		super.onPause();
+		if (uploadStatusTask != null) {
+			uploadStatusTask.cancel(true);
+		}
+	}
+
 	public void onResume(){
 		super.onResume();
 		updateButtons();
 		btStats.out.println("Verifying db storage location");
 		dbAdapter.verifyDBLocation(this);
+		uploadStatusTask = new UploadStatusTask();
+		uploadStatusTask.execute();
 	}
 
 	@Override
@@ -626,24 +641,6 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		});
 	}
 
-	public void onLogRemainingChanged(final float storageBytesPerMilli, final long totalStorageBytes, final float uploadBytesPerMilli, final long totalUploadBytes) {
-		runOnUiThread(new Runnable() {
-			public void run() {
-				// bytes/ms = kb/sec
-				DecimalFormat df = new DecimalFormat("#.##");
-				
-				recordInfo.setText("Recording: " + df.format(storageBytesPerMilli) + " KB/s");	// recording
-				
-				if (!prefAdapter.isNetworkEnabled()) {
-					uploadInfo.setText("Upload paused until network is enabled");
-				}
-				else {
-					uploadInfo.setText("Uploading: " + df.format(uploadBytesPerMilli) + " KB/s [" + Long.toString((totalStorageBytes - totalUploadBytes)/1024) + " KB remaining]");	// upload
-				}
-			}
-		});
-	}
-
 	protected void updateButtons() {
 		try {
 			toggleAcc.setChecked(btBinder.isLogging(BTService.ACC_LOGGING));
@@ -706,4 +703,44 @@ public class HomeTabbed extends Activity /* TabActivity */implements
 		public void onServiceDisconnected(ComponentName name) {
 		}
 	};
+
+	private class UploadStatusTask extends AsyncTask<Void, String, Void> {
+
+		@Override
+		protected Void doInBackground(Void... arg) {
+			while (!this.isCancelled()) {
+				String record;
+				String upload;
+				
+				// bytes/ms = kb/sec
+				DecimalFormat df = new DecimalFormat("#.##");
+				
+				// Calculate upload kb remaining
+				// NOTE: We fudge by snapping negative values to 0 due to imprecise accounting of storage vs. upload
+				long kbDelta = (btStats.getTotalDataStorageBytes() - btStats.getTotalDataUploadBytes())/1024;
+				if (kbDelta < 0) kbDelta = 0;
+				
+				if (!prefAdapter.isNetworkEnabled()) {
+					record = "Recording: " + df.format(btStats.getStoreRate()) + " KB/s [" + Long.toString(kbDelta) + " KB recorded]";
+					upload = "Upload paused until network is enabled";
+				}
+				else {
+					record = "Recording: " + df.format(btStats.getStoreRate()) + " KB/s";
+					upload = "Uploading: " + df.format(btStats.getUploadRate()) + " KB/s [" + Long.toString(kbDelta) + " KB remaining]";
+				}
+				publishProgress(record, upload);
+				try {
+					Thread.sleep(3000);
+				} 
+				catch (InterruptedException e) {
+				}
+			}
+			return null;
+		}		
+		
+		protected void onProgressUpdate(String... progress) {
+			recordInfo.setText(progress[0]);
+			uploadInfo.setText(progress[1]);
+		}
+	}
 }

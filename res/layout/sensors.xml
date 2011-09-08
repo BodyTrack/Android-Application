@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout android:id="@+id/linearLayout1" android:orientation="vertical" xmlns:android="http://schemas.android.com/apk/res/android" android:layout_height="fill_parent" android:layout_width="fill_parent">
-    <LinearLayout android:layout_height="wrap_content" android:id="@+id/linearLayout2" android:layout_width="fill_parent">
+    <LinearLayout android:layout_height="wrap_content" android:id="@+id/linearLayout2" android:layout_width="fill_parent" android:paddingTop="6dip" >
         <Button android:layout_height="wrap_content" android:text="@string/enableAll" android:layout_weight="1" android:id="@+id/enableAll" android:layout_width="fill_parent"></Button>
         <Button android:layout_height="wrap_content" android:text="@string/disableAll" android:layout_weight="1" android:id="@+id/disableAll" android:layout_width="fill_parent"></Button>
     </LinearLayout>
@@ -8,7 +8,7 @@
 		android:layout_height="fill_parent" android:layout_weight="1" android:layout_width="fill_parent">
 		<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 		    android:layout_width="fill_parent"
-		    android:layout_height="fill_parent" android:baselineAligned="true" android:orientation="vertical">
+		    android:layout_height="fill_parent" android:baselineAligned="true" android:orientation="vertical" android:paddingRight="8dip">
 		    <RelativeLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/gpsContainer">
 		        <CheckBox android:layout_height="wrap_content" android:id="@+id/toggleGPS" android:text="@string/startGPS" android:layout_width="fill_parent" android:layout_weight="1"></CheckBox>
 		        <TextView android:layout_height="wrap_content" android:text="@string/no_samples" android:layout_width="wrap_content" android:gravity="right" android:id="@+id/gpsSamples" android:layout_centerVertical="true" android:layout_alignParentRight="true"></TextView>

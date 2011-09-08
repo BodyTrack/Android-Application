@@ -117,7 +117,8 @@ public class BTStatisticTracker {
 		totalOverheadBytes += bytes;
 	}
 	
-	public void addDataUploadBytes(long bytes){
+	// This data is used by DbAdapter and HomeTabbed simultaneously so we add a lock 
+	public synchronized void addDataUploadBytes(long bytes){
 		totalDataUploadBytes += bytes;
 	}
 	
@@ -139,7 +140,8 @@ public class BTStatisticTracker {
 		out.println("Uploaded " + bytes + " " + prefix + "B with response: " + statusCode);*/
 	}
 	
-	public void addDataStorageBytes(long bytes){
+	// This data is used by DbAdapter and HomeTabbed simultaneously so we add a lock 
+	public synchronized void addDataStorageBytes(long bytes){
 		totalDataStorageBytes += bytes;
 	}
 
@@ -176,11 +178,14 @@ public class BTStatisticTracker {
 		return System.currentTimeMillis() - start;
 	}
 	
-	public long getTotalDataStorageBytes(){
+	// This data is used by DbAdapter and HomeTabbed simultaneously so we add a lock 
+
+	public synchronized long getTotalDataStorageBytes(){
 		return totalDataStorageBytes;
 	}
 	
-	public long getTotalDataUploadBytes(){
+	// This data is used by DbAdapter and HomeTabbed simultaneously so we add a lock 
+	public synchronized long getTotalDataUploadBytes(){
 		return totalDataUploadBytes;
 	}
 	
@@ -196,7 +201,8 @@ public class BTStatisticTracker {
 		return consoleText.toString();
 	}
 	
-	public float getUploadRate() {
+	// This data is used by DbAdapter and HomeTabbed simultaneously so we add a lock 
+	public synchronized float getUploadRate() {
 		long curTime = System.currentTimeMillis();
 		float rate = (totalDataUploadBytes - uploadRateBytes) / (float)(curTime - uploadRateTime);
 
@@ -206,7 +212,8 @@ public class BTStatisticTracker {
 		return rate;	// bytes per millisecond
 	}
 	
-	public float getStoreRate() {
+	// This data is used by DbAdapter and HomeTabbed simultaneously so we add a lock 
+	public synchronized float getStoreRate() {
 		long curTime = System.currentTimeMillis();
 		float rate = (totalDataStorageBytes - storeRateBytes) / (float)(curTime - storeRateTime);
 		

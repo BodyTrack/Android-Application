@@ -117,7 +117,7 @@ public class Stats extends Activity implements OnClickListener{
 			sizeUnits = "B";
 		}
 		
-		dataUp.setText("Data: " + size + " " + sizeUnits);
+		dataUp.setText("Uploaded: " + size + " " + sizeUnits);
 		
 		size = btStats.getTotalOverheadBytes();
 		if (size >= 1073741824){

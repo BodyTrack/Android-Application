@@ -37,7 +37,6 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.RemoteException;
 import android.util.Log;
-import android.widget.Toast;
 
 
 /** 
@@ -1069,9 +1068,6 @@ public class BTService extends Service implements PreferencesChangeListener{
 		}
 	};
 	
-	private long prevTimeOff = 0;
-	private long prevTime = 0;
-	
 	private boolean allowedToUpload(){
 		if (!prefAdapter.prefsAreGood())
 			return false;
@@ -1092,7 +1088,7 @@ public class BTService extends Service implements PreferencesChangeListener{
 		//TODO: clean this up!
 	     protected Void doInBackground(Void... params) {	
 
-	    	 WifiInfo address = wifiManager.getConnectionInfo();
+	    	WifiInfo address = wifiManager.getConnectionInfo();
 			
 			while (true) {
 				NetworkInfo curNetwork = conMan.getActiveNetworkInfo();
@@ -1163,23 +1159,20 @@ public class BTService extends Service implements PreferencesChangeListener{
 					// attempt upload once a minute
 					try {
 						Thread.sleep(60000);
-					} catch (InterruptedException e) {
+					} 
+					catch (InterruptedException e) {
 					}
 				}
 				else{ // sleep for one minute and try again
-					try{
+					try {
 						Thread.sleep(60000);
-					} catch (InterruptedException e) {
-						
+					} 
+					catch (InterruptedException e) {
 					}
-				}
-				HomeTabbed instance = HomeTabbed.instance;
-				if (instance != null) {
-					instance.onLogRemainingChanged(btStats.getStoreRate(), btStats.getTotalDataStorageBytes(), btStats.getUploadRate(), btStats.getTotalDataUploadBytes());
 				}
 			}
 	     }
-	 }
+	}
 	
 	private Runnable gpsFixer = new Runnable(){
 		public void run(){
